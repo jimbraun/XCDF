@@ -1,0 +1,8 @@
+# Python wrapper to XCDF bindings in pyxcdf library.
+# $Id: __init__.py.in 15395 2013-05-31 22:45:48Z sybenzvi $
+
+__version__ = "@XCDF_MAJOR_VERSION@.@XCDF_MINOR_VERSION@.@XCDF_PATCH_VERSION@"
+
+from pyxcdf import XCDFFile
+from Histogram import Histogram as Histogram
+

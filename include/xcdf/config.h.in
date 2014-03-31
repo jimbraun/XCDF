@@ -1,0 +1,24 @@
+/*!
+ * @file config.h
+ * @brief Build-time constants.
+ * @author Segev BenZvi
+ * @date 25 Oct 2013
+ * @version $Id$
+ */
+
+#ifndef XCDF_CONFIG_H_INCLUDED
+#define XCDF_CONFIG_H_INCLUDED
+
+#ifndef XCDF_MAJOR_VERSION
+#define XCDF_MAJOR_VERSION @XCDF_MAJOR_VERSION@
+#endif
+
+#ifndef XCDF_MINOR_VERSION
+#define XCDF_MINOR_VERSION @XCDF_MINOR_VERSION@
+#endif
+
+#ifndef XCDF_PATCH_VERSION
+#define XCDF_PATCH_VERSION @XCDF_PATCH_VERSION@
+#endif
+
+#endif // XCDF_CONFIG_H_INCLUDED

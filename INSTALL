@@ -1,0 +1,19 @@
+
+CMake is needed to install this software.  The command to build and install is
+very simple, with one complication: out-of-source builds are required.  That
+simply means that you can't build the software at the top of the source tree.
+Instead, create a build directory and build from there.  For example, the build
+directory could be a subfolder in the source tree:
+
+$> cd /path/to/xcdf/src
+$> mkdir build
+$> cd build
+
+Then run CMake and compile the software
+
+$> cmake -DCMAKE_INSTALL_PREFIX=/path/to/install /path/to/xcdf/src
+$> make
+$> make install
+
+Note that if /path/to/install is a relative path CMake will expand it properly.
+
