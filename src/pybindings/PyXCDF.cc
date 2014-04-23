@@ -1,208 +1,22 @@
-/*
-Copyright (c) 2014, Segev BenZvi
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
-
 /*!
  * @file PyXCDF.cc
  * @author Segev BenZvi
  * @date 30 May 2013
  * @brief Define python bindings to XCDF functions using the python C API.
- * @version $Id: PyXCDF.cc 17994 2013-11-23 02:27:32Z sybenzvi $
+ * @version $Id: PyXCDF.cc 18676 2014-02-03 01:39:00Z sybenzvi $
  */
 
 #include <xcdf/XCDFFile.h>
+#include <XCDFTypeConversion.h>
+#include <XCDFHeaderVisitor.h>
+#include <XCDFTupleSetter.h>
+#include <XCDFFieldsByNameSelector.h>
 
 #include <Python.h>
 #include <structmember.h>
 
 #include <iomanip>
 #include <sstream>
-
-// _____________________________________________
-// Functions to convert XCDF types to PyObjects \_______________________________
-template<typename T>
-PyObject* xcdf2python(const T& value);
-
-template<>
-PyObject* xcdf2python(const XCDFUnsignedIntegerField& f)
-{
-  const size_t n = f.GetSize();
-  PyObject* result = NULL;
-  int err;
-
-  if (n > 0) {
-    if (n > 1) {
-      result = PyTuple_New(n);
-      for (size_t i = 0; i < n; ++i) {
-        err = PyTuple_SetItem(result, i, PyLong_FromUnsignedLong(f[i]));
-        if (err) {
-          Py_DECREF(result);
-          return NULL;
-        }
-      }
-    }
-    else
-      result = PyLong_FromUnsignedLong(*f);
-  }
-  return result;
-}
-
-template<>
-PyObject* xcdf2python(const XCDFSignedIntegerField& f)
-{
-  const size_t n = f.GetSize();
-  PyObject* result = NULL;
-  int err;
-
-  if (n > 0) {
-    if (n > 1) {
-      result = PyTuple_New(n);
-      for (size_t i = 0; i < n; ++i) {
-        err = PyTuple_SetItem(result, i, PyLong_FromLong(f[i]));
-        if (err) {
-          Py_DECREF(result);
-          return NULL;
-        }
-      }
-    }
-    else
-      result = PyLong_FromLong(*f);
-  }
-  return result;
-}
-
-template<>
-PyObject* xcdf2python(const XCDFFloatingPointField& f)
-{
-  const size_t n = f.GetSize();
-  PyObject* result = NULL;
-  int err;
-
-  if (n > 0) {
-    if (n > 1) {
-      result = PyTuple_New(n);
-      for (size_t i = 0; i < n; ++i) {
-        err = PyTuple_SetItem(result, i, PyFloat_FromDouble(f[i]));
-        if (err) {
-          Py_DECREF(result);
-          return NULL;
-        }
-      }
-    }
-    else
-      result = PyFloat_FromDouble(*f);
-  }
-  return result;
-}
-
-/*!
- * @class TupleSetter
- * @brief A field visitor which stuffs XCDF data into a python tuple
- */
-class TupleSetter {
-
-  public:
-
-    TupleSetter(const int nfields) :
-      nfields_(nfields),
-      ifield_(0),
-      tuple_(PyTuple_New(nfields))
-    { }
-
-    template<typename T>
-    void operator()(const XCDFField<T>& field) {
-      size_t n = field.GetSize();
-      int err = 0;
-      if (n > 0) {
-        PyObject* result(xcdf2python(field));
-        err = PyTuple_SetItem(tuple_, (ifield_++ % nfields_), result);
-      }
-    }
-
-    PyObject* GetTuple() const { return tuple_; }
-
-    int GetNFields() const { return nfields_; }
-
-  private:
-
-    int nfields_;
-    int ifield_;
-    PyObject* tuple_;
-
-};
-
-/*!
- * @class HeaderVisitor
- * @brief A field visitor which stores header information into a string buffer
- */
-class HeaderVisitor {
-
-  public:
-
-    HeaderVisitor(const XCDFFile& f, std::stringstream& ostr) :
-      file_(f),
-      isFirst_(true),
-      ostr_(ostr)
-    { }
-
-    template<typename T>
-    void operator()(const XCDFField<T>& field) {
-      if (isFirst_) {
-        ostr_ << std::left << std::setw(28) << "Field" << " "
-              << std::setw(20) << "Type"
-              << std::right << std::setw(10) << "Resolution" << "   "
-              << "Parent" << std::endl;
-        ostr_ << std::left << std::setw(28) << "-----" << " "
-              << std::setw(20) << "----"
-              << std::right << std::setw(10) << "----------" << "   "
-              << "------" << std::endl;
-        isFirst_ = false;
-      }
-
-      ostr_ << std::left << std::setw(28) << field.GetName() << " ";
-
-      if (file_.IsUnsignedIntegerField(field.GetName()))
-        ostr_ << std::setw(20) << "Unsigned Integer";
-      else if (file_.IsSignedIntegerField(field.GetName()))
-        ostr_ << std::setw(20) << "Signed Integer";
-      else
-        ostr_ << std::setw(20) << "Floating Point";
-
-      ostr_ << std::right << std::setw(10) << field.GetResolution();
-
-      if (file_.IsVectorField(field.GetName()))
-        ostr_ << "   " << file_.GetFieldParentName(field.GetName());
-      ostr_ << std::endl;
-    }
-    
-  private:
-
-    const XCDFFile& file_;
-    bool isFirst_;
-    std::stringstream& ostr_;
-
-};
 
 // ___________________________________
 // Expose parts of XCDFFile to python \_________________________________________
@@ -234,11 +48,12 @@ static int
 XCDFFile_init(pyxcdf_XCDFFile* self, PyObject* args)
 {
   PyObject* filename = NULL;
+  PyObject* filemode = NULL;
   PyObject* tmp;
 
-  static const char* format = "|S";
+  static const char* format = "S|S";
 
-  if (!PyArg_ParseTuple(args, format, &filename))
+  if (!PyArg_ParseTuple(args, format, &filename, &filemode))
     return -1;
 
   if (filename) {
@@ -247,7 +62,15 @@ XCDFFile_init(pyxcdf_XCDFFile* self, PyObject* args)
     self->filename_ = filename;
     Py_XDECREF(tmp);
 
-    self->file_ = new XCDFFile(PyString_AsString(filename), "R");
+    char mode[10];
+    if (filemode) {
+      char* tmp = PyString_AsString(filemode);
+      strcpy(mode, tmp);
+    }
+    else
+      strcpy(mode, "R");
+
+    self->file_ = new XCDFFile(PyString_AsString(filename), mode);
   }
 
   return 0;
@@ -362,7 +185,7 @@ typedef struct {
   XCDFFile* file_;                      // pointer to current open XCDF file
   int iCurrent_;                        // current record being read
   int iTotal_;                          // total number of records in file
-  std::string fieldName_;               // name of the field to extract
+  char fieldNames_[1000];               // name(s) of the field(s) to extract
 } XCDFFieldIterator;
 
 // Define __iter__()
@@ -373,7 +196,7 @@ XCDFFieldIterator_iter(PyObject* self)
   return self;
 }
 
-// Define next() for iteration over XCDF field inside XCDF records
+// Define next() for iteration over XCDF fields
 PyObject*
 XCDFFieldIterator_iternext(PyObject* self)
 {
@@ -388,80 +211,11 @@ XCDFFieldIterator_iternext(PyObject* self)
       return NULL;
     }
 
-    // If field name is not correct
-    if (!p->file_->HasField(p->fieldName_)) {
-      std::stringstream errMsg;
-      errMsg << "Field \"" << p->fieldName_.c_str() << "\" not found."
-             << std::endl;
-      PyErr_SetString(PyExc_LookupError, errMsg.str().c_str());
-      return NULL;
-    }
+    // Create a field visitor to stuff data into a tuple
+    FieldsByNameSelector fsetter(p->fieldNames_);
+    p->file_->ApplyFieldVisitor(fsetter);
 
-    // Get the field descriptor
-    XCDFDescriptorIterator it;
-    for (it = p->file_->FieldDescriptorsBegin();
-         it != p->file_->FieldDescriptorsEnd(); ++it)
-    {
-      if (it->name_ == p->fieldName_)
-        break;
-    }
-
-    // Pack the data into the result
-    PyObject* result = NULL;
-
-    switch (it->type_) {
-      case XCDF_UNSIGNED_INTEGER:
-        // Pack vector fields into a tuple
-        if (p->file_->IsVectorField(it->name_)) {
-          XCDFUnsignedIntegerField f = 
-            p->file_->GetUnsignedIntegerField(it->name_);
-          uint32_t n = f.GetSize();
-          result = PyTuple_New(n);
-          for (uint32_t j = 0; j < n; ++j)
-            PyTuple_SetItem(result, j, PyInt_FromLong(f[j]));
-        }
-        // Else just return a single integer
-        else {
-          result =
-            PyInt_FromLong(*(p->file_->GetUnsignedIntegerField(it->name_)));
-        }
-        break;
-      case XCDF_SIGNED_INTEGER:
-        // Pack vector fields into a tuple
-        if (p->file_->IsVectorField(it->name_)) {
-          XCDFSignedIntegerField f = 
-            p->file_->GetSignedIntegerField(it->name_);
-          uint32_t n = f.GetSize();
-          result = PyTuple_New(n);
-          for (uint32_t j = 0; j < n; ++j)
-            PyTuple_SetItem(result, j, PyInt_FromLong(f[j]));
-        }
-        // Else just return a single integer
-        else {
-          result =
-            PyInt_FromLong(*(p->file_->GetSignedIntegerField(it->name_)));
-        }
-        break;
-      case XCDF_FLOATING_POINT:
-        // Pack vector fields into a tuple
-        if (p->file_->IsVectorField(it->name_)) {
-          XCDFSignedIntegerField f = 
-            p->file_->GetSignedIntegerField(it->name_);
-          uint32_t n = f.GetSize();
-          result = PyTuple_New(n);
-          for (uint32_t j = 0; j < n; ++j)
-            PyTuple_SetItem(result, j, PyInt_FromLong(f[j]));
-        }
-        // Else just return a single integer
-        else {
-          result =
-            PyFloat_FromDouble(*(p->file_->GetFloatingPointField(it->name_)));
-        }
-        break;
-      default:
-        break;
-    }
-
+    PyObject* result(fsetter.GetTuple());
     return result;
   }
   // When reaching EOF, rewind the XCDF file and stop the iterator
@@ -593,7 +347,9 @@ XCDFField_iterator(pyxcdf_XCDFFile* self, PyObject* fieldName)
     it->file_ = self->file_;
     it->iCurrent_ = 0;
     it->iTotal_ = self->file_->GetEventCount();
-    it->fieldName_ = PyString_AsString(fieldName);
+    const char* tmp = PyString_AsString(fieldName);
+    if (tmp)
+      std::strcpy(it->fieldNames_, tmp);
 
     return (PyObject*)it;
   }
@@ -635,20 +391,87 @@ XCDFFile_getRecord(pyxcdf_XCDFFile* self, PyObject* recordId)
   }
 }
 
+static PyObject*
+XCDFFile_addField(pyxcdf_XCDFFile* self, PyObject* args)
+{
+  try {
+    PyObject *name = NULL;      // Field name
+    PyObject *type = NULL;      // Field type (XCDF (un)signed integer/float)
+    PyObject *reso = NULL;      // Field resolution
+    PyObject *pnam = NULL;      // Parent name (if vector)
+
+    static const char *format = "OOO|O:addField";
+
+    if (!PyArg_ParseTuple(args, format, &name, &type, &reso, &pnam)) {
+      PyErr_SetString(PyExc_TypeError, "addField(name, type, resolution, "
+                                       "[parent name])");
+      return NULL;
+    }
+
+    char *nameStr = PyString_AsString(name);
+    XCDFFieldType ftype = static_cast<XCDFFieldType>(PyInt_AsLong(type));
+
+    char parent[80];
+    if (pnam)
+      strcpy(parent, PyString_AsString(pnam));
+    else
+      strcpy(parent, "");
+
+    switch (ftype) {
+      case XCDF_UNSIGNED_INTEGER:
+      {
+        uint64_t res = PyInt_AsUnsignedLongLongMask(reso);
+        self->file_->AllocateUnsignedIntegerField(nameStr, res, parent);
+        break;
+      }
+      case XCDF_SIGNED_INTEGER:
+      {
+        int64_t res = PyInt_AsLong(reso);
+        self->file_->AllocateSignedIntegerField(nameStr, res, parent);
+        break;
+      }
+      case XCDF_FLOATING_POINT:
+      {
+        double res = PyFloat_AsDouble(reso);
+        self->file_->AllocateFloatingPointField(nameStr, res, parent);
+        break;
+      }
+      default:
+        return Py_False;
+    }
+  }
+  catch (const XCDFException& e) {
+    PyErr_SetString(PyExc_IOError, e.GetMessage().c_str());
+    return NULL;
+  }
+
+  return Py_True;
+}
+
 // Method definitions for XCDFFile object
 static PyMethodDef XCDFFile_methods[] =
 {
-  { const_cast<char*>("header"), (PyCFunction)XCDFFile_header, METH_NOARGS,
+  { const_cast<char*>("header"), (PyCFunction)XCDFFile_header,
+    METH_NOARGS,
     const_cast<char*>("Print XCDF file field data") },
 
-  { const_cast<char*>("getRecord"), (PyCFunction)XCDFFile_getRecord, METH_O,
+  { const_cast<char*>("getRecord"), (PyCFunction)XCDFFile_getRecord,
+    METH_O,
     const_cast<char*>("Get a record by number from the file") },
 
-  { const_cast<char*>("records"), (PyCFunction)XCDFRecord_iterator, METH_NOARGS,
+  { const_cast<char*>("records"), (PyCFunction)XCDFRecord_iterator,
+    METH_NOARGS,
     const_cast<char*>("Iterator over XCDF records") },
 
-  { const_cast<char*>("field"), (PyCFunction)XCDFField_iterator, METH_O,
-    const_cast<char*>("Iterator over an XCDF field") },
+  { const_cast<char*>("fields"), (PyCFunction)XCDFField_iterator,
+    METH_O,
+    const_cast<char*>("Iterator over one or more XCDF fields (comma-separated "
+                      "by name)") },
+
+  { const_cast<char*>("addField"), (PyCFunction)XCDFFile_addField,
+    METH_VARARGS,
+    const_cast<char*>("Add a field with a given name, XCDF type, and optional "
+                      "resolution") },
 
   { NULL }
 };
@@ -782,6 +605,14 @@ static PyMethodDef pyxcdf_methods[] =
     // Add XCDFFile type to the module dictionary
     Py_INCREF(&pyxcdf_XCDFFileType);
     PyModule_AddObject(module, "XCDFFile", (PyObject*)&pyxcdf_XCDFFileType);
+
+    // Add XCDF enum types to the module
+    PyModule_AddIntConstant(module, "XCDF_SIGNED_INTEGER",
+                                    int(XCDF_SIGNED_INTEGER));
+    PyModule_AddIntConstant(module, "XCDF_UNSIGNED_INTEGER",
+                                    int(XCDF_UNSIGNED_INTEGER));
+    PyModule_AddIntConstant(module, "XCDF_FLOATING_POINT",
+                                    int(XCDF_FLOATING_POINT));
   }
 #endif
 

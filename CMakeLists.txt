@@ -25,7 +25,7 @@ ENDIF ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
 # Release information
 # ------------------------------------------------------------------------------
 SET (XCDF_MAJOR_VERSION 2 CACHE STRING "Major version number")
-SET (XCDF_MINOR_VERSION 4 CACHE STRING "Minor version number")
+SET (XCDF_MINOR_VERSION 6 CACHE STRING "Minor version number")
 SET (XCDF_PATCH_VERSION 0 CACHE STRING "Patch number")
 
 # ------------------------------------------------------------------------------
@@ -37,6 +37,7 @@ INCLUDE (Python)
 
 INCLUDE_DIRECTORIES (${CMAKE_SOURCE_DIR}/include)
 INCLUDE_DIRECTORIES (${CMAKE_SOURCE_DIR}/include/utility)
+INCLUDE_DIRECTORIES (${CMAKE_SOURCE_DIR}/src/pybindings)
 
 # ------------------------------------------------------------------------------
 # Set up core library and utility programs
