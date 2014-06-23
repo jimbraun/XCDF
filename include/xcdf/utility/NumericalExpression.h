@@ -76,7 +76,9 @@ class NumericalExpression {
       }
     }
 
-    uint64_t GetSize() {return masterNode_->GetSize();}
+    uint64_t GetSize() const {return masterNode_->GetSize();}
+
+    R Evaluate() const {return Evaluate(0);}
 
     R Evaluate(uint64_t index) const {
 
@@ -91,9 +93,9 @@ class NumericalExpression {
 
     // Disallow copy/assignment
     NumericalExpression(const NumericalExpression& exp) :
-                         expression_(exp.expression_.GetExpressionString(), f_),
-                         masterNode_(NULL),
-                         f_(exp.f_) { }
+                   expression_(exp.expression_.GetExpressionString(), exp.f_),
+                   masterNode_(NULL),
+                   f_(exp.f_) { }
     void operator=(const NumericalExpression& exp) { }
 
     Expression expression_;
