@@ -43,8 +43,7 @@ class EventSelectExpression {
 
     EventSelectExpression(const std::string& exp,
                           const XCDFFile& f) : expression_(exp, f),
-                                               selectNode_(NULL),
-                                               f_(f) {
+                                               selectNode_(NULL) {
 
       Symbol* start = expression_.GetHeadSymbol();
       switch (start->GetType()) {
@@ -94,14 +93,13 @@ class EventSelectExpression {
 
     // Disallow copy/assignment
     EventSelectExpression(const EventSelectExpression& exp) :
-                         expression_(exp.expression_.GetExpressionString(), f_),
-                         selectNode_(NULL),
-                         f_(exp.f_) { }
+                         expression_(exp.expression_.GetExpressionString(),
+                                     exp.expression_.GetFile()),
+                         selectNode_(NULL) { }
     void operator=(const EventSelectExpression& exp) { }
 
     Expression expression_;
     Node<uint64_t>* selectNode_;
-    const XCDFFile& f_;
 };
 
 #endif // XCDF_UTILITY_EVENT_SELECT_EXPRESSION_INCLUDED_H
