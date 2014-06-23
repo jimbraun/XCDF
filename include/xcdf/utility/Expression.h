@@ -42,6 +42,8 @@ class Expression {
     Expression(const std::string& exp,
                const XCDFFile& f) : f_(f) {
 
+      expString_ = exp;
+
       ParseSymbols(exp);
 
       if (parsedSymbols_.size() == 0) {
@@ -69,7 +71,7 @@ class Expression {
     Symbol* GetHeadSymbol() {return *(parsedSymbols_.begin());}
 
     const std::string& GetExpressionString() const {return expString_;}
-    std::string& GetExpressionString() {return expString_;}
+    const XCDFFile& GetFile() const {return f_;}
 
   private:
 

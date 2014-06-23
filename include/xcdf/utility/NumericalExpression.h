@@ -43,8 +43,7 @@ class NumericalExpression {
 
     NumericalExpression(const std::string& exp,
                         const XCDFFile& f) : expression_(exp, f),
-                                             masterNode_(NULL),
-                                             f_(f) {
+                                             masterNode_(NULL) {
 
       Symbol* start = expression_.GetHeadSymbol();
       switch (start->GetType()) {
@@ -93,14 +92,13 @@ class NumericalExpression {
 
     // Disallow copy/assignment
     NumericalExpression(const NumericalExpression& exp) :
-                   expression_(exp.expression_.GetExpressionString(), exp.f_),
-                   masterNode_(NULL),
-                   f_(exp.f_) { }
+                   expression_(exp.expression_.GetExpressionString(),
+                               exp.expression_.GetFile()),
+                   masterNode_(NULL) { }
     void operator=(const NumericalExpression& exp) { }
 
     Expression expression_;
     Node<R>* masterNode_;
-    const XCDFFile& f_;
 };
 
 #endif // XCDF_UTILITY_NUMERICAL_EXPRESSION_INCLUDED_H
