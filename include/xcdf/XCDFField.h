@@ -28,6 +28,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define XCDF_FIELD_INCLUDED_H
 
 #include <xcdf/XCDFFieldData.h>
+#include <xcdf/XCDFPtr.h>
 
 #include <string>
 #include <stdint.h>
@@ -46,46 +47,10 @@ class XCDFField {
   public:
 
     XCDFField(const std::string& name,
-              const T resolution) {
+              const T resolution) :
+           fieldData_(xcdf_shared(new XCDFFieldData<T>(name, resolution))) { }
 
-      fieldData_ = new XCDFFieldData<T>(name, resolution);
-      IncrementReferenceCount();
-    }
-
-    XCDFField() {
-      fieldData_ = new XCDFFieldData<T>("", 1);
-      IncrementReferenceCount();
-    }
-
-    XCDFField(const XCDFField& field) : fieldData_(field.fieldData_) {
-
-      IncrementReferenceCount();
-    }
-
-    ~XCDFField() {
-
-      // Check reference count for possible deallocation
-      DecrementReferenceCount();
-    }
-
-    const XCDFField& operator=(const XCDFField& field) {
-
-      // Skip if self-assignment
-      if (this == &field) {
-        return *this;
-      }
-
-      // Check reference count for possible deallocation
-      DecrementReferenceCount();
-
-      // Copy data pointer
-      fieldData_ = field.fieldData_;
-
-      // Increment reference count of new fieldData
-      IncrementReferenceCount();
-
-      return *this;
-    }
+    XCDFField() : fieldData_(xcdf_shared(new XCDFFieldData<T>("", 1))) { }
 
     const std::string& GetName() const {return fieldData_->GetName();}
 
@@ -124,19 +89,7 @@ class XCDFField {
 
   private:
 
-    XCDFFieldData<T>* fieldData_;
-
-    void IncrementReferenceCount() {fieldData_->IncrementReferenceCount();}
-
-    void DecrementReferenceCount() {
-
-      fieldData_->DecrementReferenceCount();
-      if (!fieldData_->HasReferences()) {
-
-        // De-allocate the XCDFFieldData object
-        delete fieldData_;
-      }
-    }
+    XCDFPtr<XCDFFieldData<T> > fieldData_;
 
   template <typename V> friend class XCDFDataManager;
 };

@@ -27,6 +27,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef XCDF_STREAM_HANDLER_INCLUDED_H
 #define XCDF_STREAM_HANDLER_INCLUDED_H
 
+#include <XCDFPtr.h>
+
 #include <ostream>
 #include <istream>
 #include <fstream>
@@ -41,32 +43,7 @@ class XCDFStreamHandler {
 
   public:
 
-    XCDFStreamHandler() {
-
-      streams_ = new StreamsContainer();
-      IncrementReferenceCount();
-    }
-
-    XCDFStreamHandler(const XCDFStreamHandler& handler) :
-                                      streams_(handler.streams_) {
-
-      IncrementReferenceCount();
-    }
-
-    ~XCDFStreamHandler() {DecrementReferenceCount();}
-
-    XCDFStreamHandler& operator=(const XCDFStreamHandler& handler) {
-
-      if (this == &handler) {
-        return *this;
-      }
-
-      DecrementReferenceCount();
-      streams_ = handler.streams_;
-      IncrementReferenceCount();
-
-      return *this;
-    }
+    XCDFStreamHandler() : streams_(xcdf_shared(new StreamsContainer())) { }
 
     bool IsWritable() const {return streams_->ostream_ != NULL;}
     bool IsReadable() const {return streams_->istream_ != NULL;}
@@ -168,18 +145,7 @@ class XCDFStreamHandler {
         std::ofstream outputFileStream_;
     };
 
-    StreamsContainer* streams_;
-
-    void IncrementReferenceCount() {streams_->referenceCount_++;}
-
-    void DecrementReferenceCount() {
-
-      streams_->referenceCount_--;
-      if (streams_->referenceCount_ == 0) {
-
-        delete streams_;
-      }
-    }
+    XCDFPtr<StreamsContainer> streams_;
 };
 
 #endif // XCDF_STREAM_HANDLER_INCLUDED_H

@@ -30,6 +30,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <xcdf/utility/Symbol.h>
 #include <xcdf/utility/NodeDefs.h>
 #include <xcdf/utility/Expression.h>
+#include <xcdf/XCDFPtr.h>
 
 #include <vector>
 #include <list>
@@ -42,36 +43,29 @@ class EventSelectExpression {
   public:
 
     EventSelectExpression(const std::string& exp,
-                          const XCDFFile& f) : expression_(exp, f),
-                                               selectNode_(NULL) {
+                          const XCDFFile& f) :
+                expression_(xcdf_shared(new Expression(exp, f))) {
 
-      Symbol* start = expression_.GetHeadSymbol();
+      Symbol* start = expression_->GetHeadSymbol();
       switch (start->GetType()) {
 
         case FLOATING_POINT_NODE:
-          selectNode_ =
-             new IsTrueNode<double>(*static_cast<Node<double>* >(start));
+          selectNode_ = xcdf_shared(
+             new IsTrueNode<double>(*static_cast<Node<double>* >(start)));
           break;
 
         case SIGNED_NODE:
-          selectNode_ =
-             new IsTrueNode<int64_t>(*static_cast<Node<int64_t>* >(start));
+          selectNode_ = xcdf_shared(
+             new IsTrueNode<int64_t>(*static_cast<Node<int64_t>* >(start)));
           break;
 
         case UNSIGNED_NODE:
-          selectNode_ =
-             new IsTrueNode<uint64_t>(*static_cast<Node<uint64_t>* >(start));
+          selectNode_ = xcdf_shared(
+             new IsTrueNode<uint64_t>(*static_cast<Node<uint64_t>* >(start)));
           break;
 
         default:
           XCDFFatal("Expression does not evaluate: " << exp);
-      }
-    }
-
-    ~EventSelectExpression() {
-
-      if (selectNode_) {
-        delete selectNode_;
       }
     }
 
@@ -91,15 +85,8 @@ class EventSelectExpression {
 
   private:
 
-    // Disallow copy/assignment
-    EventSelectExpression(const EventSelectExpression& exp) :
-                         expression_(exp.expression_.GetExpressionString(),
-                                     exp.expression_.GetFile()),
-                         selectNode_(NULL) { }
-    void operator=(const EventSelectExpression& exp) { }
-
-    Expression expression_;
-    Node<uint64_t>* selectNode_;
+    XCDFPtr<Expression> expression_;
+    XCDFPtr<Node<uint64_t> > selectNode_;
 };
 
 #endif // XCDF_UTILITY_EVENT_SELECT_EXPRESSION_INCLUDED_H
