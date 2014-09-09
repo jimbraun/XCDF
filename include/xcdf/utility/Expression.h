@@ -239,7 +239,7 @@ class Expression {
 
       Symbol* out = DoConstNode<uint64_t>(numerical, std::hex);
       if (!out) {
-        out = DoConstNode<int64_t>(numerical, std::dec);
+        out = DoConstNode<uint64_t>(numerical, std::dec);
       }
       if (!out) {
         out = DoConstNode<int64_t>(numerical, std::dec);
