@@ -49,17 +49,17 @@ class NumericalExpression {
       switch (start->GetType()) {
 
         case FLOATING_POINT_NODE:
-          masterNode_ = xcdf_shared(
+          masterNode_ = XCDFPtr<Node<R> >(
              new CastNode<R, double>(*static_cast<Node<double>* >(start)));
           break;
 
         case SIGNED_NODE:
-          masterNode_ = xcdf_shared(
+          masterNode_ = XCDFPtr<Node<R> >(
              new CastNode<R, int64_t>(*static_cast<Node<int64_t>* >(start)));
           break;
 
         case UNSIGNED_NODE:
-          masterNode_ = xcdf_shared(
+          masterNode_ = XCDFPtr<Node<R> >(
              new CastNode<R, uint64_t>(*static_cast<Node<uint64_t>* >(start)));
           break;
 
