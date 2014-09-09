@@ -50,17 +50,17 @@ class EventSelectExpression {
       switch (start->GetType()) {
 
         case FLOATING_POINT_NODE:
-          selectNode_ = xcdf_shared(
+          selectNode_ = XCDFPtr<Node<uint64_t> >(
              new IsTrueNode<double>(*static_cast<Node<double>* >(start)));
           break;
 
         case SIGNED_NODE:
-          selectNode_ = xcdf_shared(
+          selectNode_ = XCDFPtr<Node<uint64_t> >(
              new IsTrueNode<int64_t>(*static_cast<Node<int64_t>* >(start)));
           break;
 
         case UNSIGNED_NODE:
-          selectNode_ = xcdf_shared(
+          selectNode_ = XCDFPtr<Node<uint64_t> >(
              new IsTrueNode<uint64_t>(*static_cast<Node<uint64_t>* >(start)));
           break;
 

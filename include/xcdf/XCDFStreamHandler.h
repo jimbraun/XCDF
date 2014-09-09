@@ -27,7 +27,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef XCDF_STREAM_HANDLER_INCLUDED_H
 #define XCDF_STREAM_HANDLER_INCLUDED_H
 
-#include <XCDFPtr.h>
+#include <xcdf/XCDFPtr.h>
 
 #include <ostream>
 #include <istream>
