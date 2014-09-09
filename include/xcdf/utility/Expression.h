@@ -34,6 +34,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <list>
 #include <cassert>
 #include <sstream>
+#include <cctype>
 
 class Expression {
 
@@ -156,9 +157,8 @@ class Expression {
 
         // It is a numerical.  Parse it as the longest numerical
         // possible to catch valid cases like -3.14159e+00
-        size_t count = 0;
-        Symbol* val = ParseNumerical(valueString, count);
-        pos += count;
+        Symbol* val = ParseNumerical(valueString);
+        pos = operpos;
 
         if (!val) {
           // This is user error.
@@ -217,90 +217,37 @@ class Expression {
       return op;
     }
 
-    Symbol* ParseNumerical(const std::string& numerical, size_t& pos) const {
-
-      int nreadUnsignedInt = 0;
-      int nreadUnsignedIntHex = 0;
-      int nreadSignedInt = 0;
-      int nreadDouble = 0;
-
-      int cntReadUnsignedInt = 0;
-      int cntReadUnsignedIntHex = 0;
-      int cntReadSignedInt = 0;
-      int cntReadDouble = 0;
-
-      uint64_t uintTest;
-      int64_t intTest;
-      double doubleTest;
-
-      // Suppress type warnings
-      unsigned long long uval(0), uvalHex;
-      long long ival;
-
-      assert(numerical.size() > 0);
-
-      // Don't attempt uint conversion if there is a leading '-'
-      if (numerical[0] != '-') {
-        cntReadUnsignedInt =
-            sscanf(numerical.c_str(), "%llu%n", &uval, &nreadUnsignedInt);
-
-        // Try also as hex
-        cntReadUnsignedIntHex =
-            sscanf(numerical.c_str(), "%llx%n", &uvalHex, &nreadUnsignedIntHex);
-
-        // If more read as hex, favor that
-        if (nreadUnsignedIntHex > nreadUnsignedInt) {
-          uval = uvalHex;
-          nreadUnsignedInt = nreadUnsignedIntHex;
-          cntReadUnsignedInt = cntReadUnsignedIntHex;
-        }
+    template <typename T, typename M>
+    Symbol* DoConstNode(const std::string& numerical, M manip) const {
+      std::stringstream ss(numerical);
+      ss << manip;
+      T out;
+      ss >> out;
+      if (ss.fail()) {
+        return NULL;
       }
-
-      cntReadSignedInt =
-          sscanf(numerical.c_str(), "%lld%n", &ival, &nreadSignedInt);
-
-      cntReadDouble =
-          sscanf(numerical.c_str(), "%lg%n", &doubleTest, &nreadDouble);
-
-      uintTest = uval;
-      intTest = ival;
-
-      // '.' is not extracted if it is at end-of-extraction.  Extract it.
-      if (cntReadDouble &&
-             static_cast<unsigned>(nreadDouble) < numerical.size()) {
-        if (numerical[nreadDouble] == '.') {
-          pos += nreadDouble + 1;
-          return new ConstNode<double>(doubleTest);
-        }
+      // Make sure there are no unconverted characters
+      std::string s;
+      ss >> s;
+      if (s.size() > 0) {
+        return NULL;
       }
+      return new ConstNode<T>(out);
+    }
 
-      // If any of the characters ".eE" were parsed, it is a double
-      if (numerical.find_first_of(".eE") <
-                 static_cast<unsigned>(nreadDouble) && cntReadDouble) {
-        pos += nreadDouble;
-        return new ConstNode<double>(doubleTest);
+    Symbol* ParseNumerical(const std::string& numerical) const {
+
+      Symbol* out = DoConstNode<uint64_t>(numerical, std::hex);
+      if (!out) {
+        out = DoConstNode<uint64_t>(numerical, std::dec);
       }
-
-      // Return the numerical that extracted the most characters,
-      // favoring uint over int, and int over double
-      if (nreadDouble > nreadSignedInt &&
-          nreadDouble > nreadUnsignedInt && cntReadDouble) {
-        pos += nreadDouble;
-        return new ConstNode<double>(doubleTest);
+      if (!out) {
+        out = DoConstNode<int64_t>(numerical, std::dec);
       }
-
-      if (nreadSignedInt > nreadUnsignedInt && cntReadSignedInt) {
-        pos += nreadSignedInt;
-        return new ConstNode<int64_t>(intTest);
+      if (!out) {
+        out = DoConstNode<double>(numerical, std::dec);
       }
-
-      if (cntReadUnsignedInt) {
-        pos += nreadUnsignedInt;
-        return new ConstNode<uint64_t>(uintTest);
-      }
-
-      // Not a numerical
-      return NULL;
+      return out;
     }
 
     Symbol* ParseValueImpl(std::string exp, bool requireFunctional) const {
@@ -327,8 +274,7 @@ class Expression {
       }
 
       // Try to parse as a numerical value
-      size_t pos = 0;
-      Symbol* numerical = ParseNumerical(exp, pos);
+      Symbol* numerical = ParseNumerical(exp);
       if (numerical) {
         return numerical;
       }
