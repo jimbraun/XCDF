@@ -42,36 +42,29 @@ class NumericalExpression {
   public:
 
     NumericalExpression(const std::string& exp,
-                        const XCDFFile& f) : expression_(exp, f),
-                                             masterNode_(NULL) {
+                        const XCDFFile& f) :
+              expression_(xcdf_shared(new Expression(exp, f))) {
 
-      Symbol* start = expression_.GetHeadSymbol();
+      Symbol* start = expression_->GetHeadSymbol();
       switch (start->GetType()) {
 
         case FLOATING_POINT_NODE:
-          masterNode_ =
-             new CastNode<R, double>(*static_cast<Node<double>* >(start));
+          masterNode_ = XCDFPtr<Node<R> >(
+             new CastNode<R, double>(*static_cast<Node<double>* >(start)));
           break;
 
         case SIGNED_NODE:
-          masterNode_ =
-             new CastNode<R, int64_t>(*static_cast<Node<int64_t>* >(start));
+          masterNode_ = XCDFPtr<Node<R> >(
+             new CastNode<R, int64_t>(*static_cast<Node<int64_t>* >(start)));
           break;
 
         case UNSIGNED_NODE:
-          masterNode_ =
-             new CastNode<R, uint64_t>(*static_cast<Node<uint64_t>* >(start));
+          masterNode_ = XCDFPtr<Node<R> >(
+             new CastNode<R, uint64_t>(*static_cast<Node<uint64_t>* >(start)));
           break;
 
         default:
           XCDFFatal("Expression does not evaluate: " << exp);
-      }
-    }
-
-    ~NumericalExpression() {
-
-      if (masterNode_) {
-        delete masterNode_;
       }
     }
 
@@ -90,15 +83,8 @@ class NumericalExpression {
 
   private:
 
-    // Disallow copy/assignment
-    NumericalExpression(const NumericalExpression& exp) :
-                   expression_(exp.expression_.GetExpressionString(),
-                               exp.expression_.GetFile()),
-                   masterNode_(NULL) { }
-    void operator=(const NumericalExpression& exp) { }
-
-    Expression expression_;
-    Node<R>* masterNode_;
+    XCDFPtr<Expression> expression_;
+    XCDFPtr<Node<R> > masterNode_;
 };
 
 #endif // XCDF_UTILITY_NUMERICAL_EXPRESSION_INCLUDED_H
