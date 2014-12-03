@@ -274,7 +274,7 @@ class Expression {
       // Parse hex only if we have leading x or X
       char hex[2] = {'X', 'x'};
       if (numerical.find(hex) != std::string::npos) {
-        DoConstNode<uint64_t>(numerical, std::hex);
+        out = DoConstNode<uint64_t>(numerical, std::hex);
       }
       if (!out) {
         out = DoConstNode<uint64_t>(numerical, std::dec);
