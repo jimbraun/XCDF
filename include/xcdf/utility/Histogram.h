@@ -90,7 +90,7 @@ class Histogram1D {
         overflow_ += weight;
         overflowW2_ += weight*weight;
       } else {
-        int64_t binno = static_cast<int64_t>(floor(ldiff));
+        int64_t binno = static_cast<int64_t>(ldiff);
         data_[binno] += weight;
         dataW2_[binno] += weight*weight;
       }
