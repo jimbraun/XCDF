@@ -751,11 +751,11 @@ void PrintUsage() {
     "    histogram \"histogram expression\" {infiles}:\n\n" <<
     "                    Create a histogram from the selected files according to\n" <<
     "                    the specified expression.  Valid expressions are of the form\n" <<
-    "                    \"nbins min max expr\" for 1D histograms, and\n" <<
-    "                    \"nbinsX minX maxX exprX nbinsY minY maxY exprY\" for 2D.\n" <<
+    "                    \"nbins, min, max, expr\" for 1D histograms, and\n" <<
+    "                    \"nbinsX, minX, maxX, exprX, nbinsY, minY, maxY, exprY\" for 2D.\n" <<
     "                    \"expr\" is of the form e.g. \"fieldName*3.14159\".\n" <<
     "                    For both 1D and 2D, an optional expression may be appended\n" <<
-    "                    to weight the entry, e.g. \"100 0 1 field1 field2\" would\n" <<
+    "                    to weight the entry, e.g. \"100, 0, 1, field1, field2\" would\n" <<
     "                    create a histogram of field1 with 100 bins from 0 to 1,\n" <<
     "                    weighting each entry by the value of field2.\n\n" <<
 
