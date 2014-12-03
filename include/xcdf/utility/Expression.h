@@ -155,8 +155,41 @@ class Expression {
           }
         }
 
-        // It is a numerical.  Parse it as the longest numerical
-        // possible to catch valid cases like -3.14159e+00
+        // It is a numerical.  Make sure it doesn't contain a hidden operator.
+        if (firstpm == 0) {
+          // Ignore leading +/-
+          firstpm = valueString.find_first_of("+-", 1);
+        }
+        if (firstpm != std::string::npos) {
+          // If not preceded by e or E, this is an operator
+          size_t firste = valueString.find_first_of("eE", 0);
+          if (firste == std::string::npos || firste != firstpm - 1) {
+            // Hidden operator
+            Symbol* val = ParseNumerical(valueString.substr(0, firstpm));
+            if (!val) {
+              // This is user error.
+              XCDFFatal("Cannot parse expression \"" << valueString << "\"");
+            }
+            pos += firstpm;
+            return val;
+          }
+        }
+
+        // If there is another +/-, it is definitely an operator
+        if (firstpm != std::string::npos) {
+          firstpm = valueString.find_first_of("+-", firstpm+1);
+          if (firstpm != std::string::npos) {
+            Symbol* val = ParseNumerical(valueString.substr(0, firstpm));
+            if (!val) {
+              // This is user error.
+              XCDFFatal("Cannot parse expression \"" << valueString << "\"");
+            }
+            pos += firstpm;
+            return val;
+          }
+        }
+
+        // Parse the simple numerical
         Symbol* val = ParseNumerical(valueString);
         pos = operpos;
 
@@ -237,7 +270,12 @@ class Expression {
 
     Symbol* ParseNumerical(const std::string& numerical) const {
 
-      Symbol* out = DoConstNode<uint64_t>(numerical, std::hex);
+      Symbol* out = NULL;
+      // Parse hex only if we have leading x or X
+      char hex[2] = {'X', 'x'};
+      if (numerical.find(hex) != std::string::npos) {
+        DoConstNode<uint64_t>(numerical, std::hex);
+      }
       if (!out) {
         out = DoConstNode<uint64_t>(numerical, std::dec);
       }
