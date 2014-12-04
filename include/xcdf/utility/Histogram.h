@@ -32,7 +32,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <xcdf/utility/NumericalExpression.h>
 
 #include <vector>
-#include <map>
 #include <utility>
 #include <stdint.h>
 #include <cmath>
