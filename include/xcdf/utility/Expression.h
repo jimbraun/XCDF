@@ -166,7 +166,10 @@ class Expression {
         }
 
         // Next loop: skip to before last +/-
-        endpos = exp.find_last_of("+-", endpos) - 1;
+        endpos = exp.find_last_of("+-", endpos);
+        if (endpos != std::string::npos) {
+          endpos = exp.find_last_not_of("+-", endpos);
+        }
       }
 
       // Parsing failure
