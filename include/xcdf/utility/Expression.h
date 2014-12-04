@@ -170,7 +170,14 @@ class Expression {
       }
 
       // Parsing failure
-      XCDFFatal("Cannot parse expression \"" << valueString << "\"");
+      XCDFError("Cannot parse expression \"" << exp << "\"");
+      std::string ss = "";
+      for (unsigned i = 1; i < pos; ++i) {
+        ss += " ";
+      }
+      ss += "^";
+      XCDFError("                         " << ss);
+      XCDFFatal("");
       return NULL;
     }
 
@@ -192,8 +199,15 @@ class Expression {
       pos = endpos + 1;
       Symbol* op = ParseOperatorImpl(exp.substr(startpos, pos - startpos));
       if (!op) {
-        XCDFFatal("Unable to parse operator: \"" <<
-                        exp.substr(startpos, pos - startpos) << "\"");
+        // Parsing failure
+        XCDFError("Cannot parse expression \"" << exp << "\"");
+        std::string ss = "";
+        for (unsigned i = 1; i < pos; ++i) {
+          ss += " ";
+        }
+        ss += "^";
+        XCDFError("                         " << ss);
+        XCDFFatal("");
       }
       return op;
     }
