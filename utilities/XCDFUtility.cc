@@ -539,6 +539,26 @@ void FillHistogram(std::vector<std::string>& infiles,
   }
 }
 
+void CheckRange(std::vector<std::string>& infiles,
+                RangeChecker& rc) {
+
+  XCDFFile f;
+  for (unsigned i = 0; i <= infiles.size(); ++i) {
+
+    if (i == infiles.size()) {
+      if (infiles.size() == 0) {
+        XCDFFatal("Cannot fill variable range histogram from stdin")
+      } else {
+        continue;
+      }
+    } else {
+      f.Open(infiles[i], "r");
+    }
+
+    rc.Fill(f);
+  }
+}
+
 template <typename T>
 bool Extract(std::string& s, T& out) {
 
@@ -547,8 +567,77 @@ bool Extract(std::string& s, T& out) {
   return ss.fail();
 }
 
-void Histogram(std::vector<std::string>& infiles,
-               std::string& exp) {
+void CreateHistogram(std::vector<std::string>& infiles,
+                     std::string& exp) {
+
+  // Parse CSV expression
+  std::vector<std::string> args;
+  char* expPtr = const_cast<char*>(exp.c_str());
+  for (char* tok = strtok(expPtr, ","); tok != NULL;
+                                        tok = strtok(NULL, ",")) {
+
+    std::string str(tok);
+
+    // Trim leading and trailing whitespace
+    size_t endPos = str.find_last_not_of(" \n\r\t");
+    if(endPos != std::string::npos) {
+      str = str.substr(0, endPos+1);
+    }
+
+    size_t startPos = str.find_first_not_of(" \n\r\t");
+    if(startPos != std::string::npos) {
+      str = str.substr(startPos);
+    }
+
+    args.push_back(str);
+  }
+
+  if (!(args.size() == 2 || args.size() == 3 ||
+        args.size() == 4 || args.size() == 5)) {
+    std::cerr << "Invalid histogram args: " << exp << std::endl;
+    return;
+  }
+
+  unsigned nbins;
+  double min, max;
+  std::string expr;
+  std::string weightExpr = "1.";
+  bool fail = false;
+  fail |= Extract(args[0], nbins);
+  if (args.size() == 4 || args.size() == 5) {
+    fail |= Extract(args[1], min);
+    fail |= Extract(args[2], max);
+    if (fail) {
+      std::cerr << "Invalid histogram args: " << exp << std::endl;
+      return;
+    }
+    expr = args[3];
+    if (args.size() == 5) {
+      weightExpr = args[4];
+    }
+  } else {
+    expr = args[1];
+    if (args.size() == 3) {
+      weightExpr = args[2];
+    }
+    if (fail) {
+      std::cerr << "Invalid histogram args: " << exp << std::endl;
+      return;
+    }
+    RangeChecker rc(expr);
+    CheckRange(infiles, rc);
+    min = rc.GetMin();
+    max = rc.GetMax();
+  }
+
+  Histogram1D h(nbins, min, max);
+  Filler1D fill(expr, weightExpr);
+  FillHistogram(infiles, h, fill);
+  std::cout << h;
+}
+
+void CreateHistogram2D(std::vector<std::string>& infiles,
+                       std::string& exp) {
 
   // Parse CSV expression
   std::vector<std::string> args;
@@ -578,31 +667,16 @@ void Histogram(std::vector<std::string>& infiles,
     return;
   }
 
-  unsigned nbins, nbinsY;
-  double min, max, minY, maxY;
-  std::string expr, exprY;
+  unsigned nbinsX, nbinsY;
+  double minX, maxX, minY, maxY;
+  std::string exprX, exprY;
   std::string weightExpr = "1.";
   bool fail = false;
-  fail |= Extract(args[0], nbins);
-  fail |= Extract(args[1], min);
-  fail |= Extract(args[2], max);
-  expr = args[3];
-  if (args.size() == 5) {
-    weightExpr = args[4];
-  }
-
-  if (fail) {
-    std::cerr << "Invalid histogram args: " << exp << std::endl;
-    return;
-  }
-  if (args.size() == 4 || args.size() == 5) {
-    Histogram1D h(nbins, min, max);
-    Filler1D fill(expr, weightExpr);
-    FillHistogram(infiles, h, fill);
-    std::cout << h;
-    return;
-  } else {
-
+  fail |= Extract(args[0], nbinsX);
+  if (args.size() == 8 || args.size() == 9) {
+    fail |= Extract(args[1], minX);
+    fail |= Extract(args[2], maxX);
+    exprX = args[3];
     fail |= Extract(args[4], nbinsY);
     fail |= Extract(args[5], minY);
     fail |= Extract(args[6], maxY);
@@ -614,12 +688,32 @@ void Histogram(std::vector<std::string>& infiles,
       std::cerr << "Invalid histogram args: " << exp << std::endl;
       return;
     }
-    Histogram2D h(nbins, min, max, nbinsY, minY, maxY);
-    Filler2D fill(expr, exprY, weightExpr);
-    FillHistogram(infiles, h, fill);
-    std::cout << h;
-    return;
+  } else {
+    exprX = args[1];
+    fail |= Extract(args[2], nbinsY);
+    exprY = args[3];
+    if (args.size() == 5) {
+      weightExpr = args[4];
+    }
+    if (fail) {
+      std::cerr << "Invalid histogram args: " << exp << std::endl;
+      return;
+    }
+    std::vector<std::string> exprs;
+    exprs.push_back(exprX);
+    exprs.push_back(exprY);
+    RangeChecker rc(exprs);
+    CheckRange(infiles, rc);
+    minX = rc.GetMin(0);
+    maxX = rc.GetMax(0);
+    minY = rc.GetMin(1);
+    maxY = rc.GetMax(1);
   }
+
+  Histogram2D h(nbinsX, minX, maxX, nbinsY, minY, maxY);
+  Filler2D fill(exprX, exprY, weightExpr);
+  FillHistogram(infiles, h, fill);
+  std::cout << h;
 }
 
 void Paste(std::vector<std::string>& infiles,
@@ -751,13 +845,21 @@ void PrintUsage() {
     "    histogram \"histogram expression\" {infiles}:\n\n" <<
     "                    Create a histogram from the selected files according to\n" <<
     "                    the specified expression.  Valid expressions are of the form\n" <<
-    "                    \"nbins, min, max, expr\" for 1D histograms, and\n" <<
-    "                    \"nbinsX, minX, maxX, exprX, nbinsY, minY, maxY, exprY\" for 2D.\n" <<
+    "                    \"nbins, min, max, expr\" or \"nbins, expr\", dynamically\n" <<
+    "                    determining the min and max.\n" <<
     "                    \"expr\" is of the form e.g. \"fieldName*3.14159\".\n" <<
-    "                    For both 1D and 2D, an optional expression may be appended\n" <<
+    "                    An optional expression may be appended\n" <<
     "                    to weight the entry, e.g. \"100, 0, 1, field1, field2\" would\n" <<
     "                    create a histogram of field1 with 100 bins from 0 to 1,\n" <<
     "                    weighting each entry by the value of field2.\n\n" <<
+
+    "    histogram2d \"histogram expression\" {infiles}:\n\n" <<
+    "                    Create a 2D histogram from the selected files according to\n" <<
+    "                    the specified expression.  Valid expressions are of the form\n" <<
+    "                    \"nbinsX, minX, maxX, exprX, nbinsY, minY, maxY, exprY\" or\n" <<
+    "                    \"nbinsX, exprX, nbinsY, exprY\", dynamically determining min\n" <<
+    "                    and max.  An optional expression may be appended to weight the\n" <<
+    "                    entry.\n\n" <<
 
     "    add-comment \"comment\" {-o outfile} {infiles} Add comment to an XCDF file\n\n" <<
 
@@ -812,7 +914,8 @@ int main(int argc, char** argv) {
     }
   }
 
-  if (!verb.compare("histogram")) {
+  if (!verb.compare("histogram") ||
+      !verb.compare("histogram2d")) {
 
     if (argc < 3) {
       PrintUsage();
@@ -938,7 +1041,11 @@ int main(int argc, char** argv) {
   }
 
   else if (!verb.compare("histogram")) {
-    Histogram(infiles, exp);
+    CreateHistogram(infiles, exp);
+  }
+
+  else if (!verb.compare("histogram2d")) {
+    CreateHistogram2D(infiles, exp);
   }
 
   else if (!verb.compare("compare")) {

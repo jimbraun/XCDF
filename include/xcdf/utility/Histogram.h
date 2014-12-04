@@ -32,6 +32,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <xcdf/utility/NumericalExpression.h>
 
 #include <vector>
+#include <map>
 #include <utility>
 #include <stdint.h>
 #include <cmath>
@@ -49,7 +50,8 @@ class Histogram1D {
                                                           overflow_(0.),
                                                           overflowW2_(0.),
                                                           min_(min),
-                                                          max_(max) {
+                                                          max_(max),
+                                                          nEntries_(0) {
 
       if (nbins == 0) {
         XCDFFatal("Histogram must have >0 bins");
@@ -64,6 +66,7 @@ class Histogram1D {
     unsigned GetNBins() const {return data_.size();}
     double GetMinimum() const {return min_;}
     double GetMaximum() const {return max_;}
+    uint64_t GetNEntries() const {return nEntries_;}
     double GetBinMinimum(unsigned i) const {
       return min_ + (i+0.) / (rinv_ * GetNBins());
     }
@@ -94,6 +97,7 @@ class Histogram1D {
         data_[binno] += weight;
         dataW2_[binno] += weight*weight;
       }
+      ++nEntries_;
     }
 
     friend class Histogram2D;
@@ -110,6 +114,8 @@ class Histogram1D {
     double min_;
     double max_;
     double rinv_;
+
+    uint64_t nEntries_;
 };
 
 class Histogram2D {
@@ -125,7 +131,8 @@ class Histogram2D {
                                               xMin_(minX),
                                               xMax_(maxX),
                                               yMin_(minY),
-                                              yMax_(maxY) {
+                                              yMax_(maxY),
+                                              nEntries_(0) {
 
       if (nbinsX == 0 || nbinsY == 0) {
         XCDFFatal("Histogram must have >0 bins");
@@ -145,6 +152,7 @@ class Histogram2D {
     double GetXMaximum() const {return xMax_;}
     double GetYMinimum() const {return yMin_;}
     double GetYMaximum() const {return yMax_;}
+    uint64_t GetNEntries() const {return nEntries_;}
     std::pair<double, double> GetBinMinimum(unsigned i) const {
       return GetBinMinimum(i % nbinsX_, i / nbinsX_);
     }
@@ -187,6 +195,7 @@ class Histogram2D {
         data_[bb] += weight;
         dataW2_[bb] += weight*weight;
       }
+      ++nEntries_;
     }
 
     Histogram1D ProfileX(unsigned i) {
@@ -234,6 +243,8 @@ class Histogram2D {
     double yMax_;
     double xRinv_;
     double yRinv_;
+
+    uint64_t nEntries_;
 };
 
 class Filler1D {
@@ -285,6 +296,82 @@ class Filler2D {
     std::string xExpr_;
     std::string yExpr_;
     std::string wExpr_;
+};
+
+class RangeTest {
+
+  public:
+
+    RangeTest() : max_(-HUGE_VAL), min_(HUGE_VAL) { }
+
+    void Fill(double x) {
+      if (x < min_) {
+        min_ = x;
+      }
+      if (x > max_) {
+        max_ = x;
+      }
+    }
+
+    // Use range [0,1] if no entries are made
+    double GetMax() const {
+      if (min_ > max_) {
+        return 1.;
+      }
+      return max_;
+    }
+
+    // Use range [0,1] if no entries are made
+    double GetMin() const {
+      if (min_ > max_) {
+        return 0.;
+      }
+      return min_;
+    }
+
+  private:
+
+    double max_;
+    double min_;
+};
+
+class RangeChecker {
+
+  public:
+
+    RangeChecker(const std::vector<std::string>& exprs) :
+                              exprs_(exprs),
+                              rts_(std::vector<RangeTest>(exprs.size())) { }
+    RangeChecker(const std::string& expr) :
+                              exprs_(std::vector<std::string>(1, expr)),
+                              rts_(std::vector<RangeTest>(1)) { }
+
+    double GetMax() {return GetMax(0);}
+    double GetMax(unsigned i) {return (rts_[i]).GetMax();}
+
+    double GetMin() {return GetMin(0);}
+    double GetMin(unsigned i) {return (rts_[i]).GetMin();}
+
+    unsigned GetNExpressions() {return exprs_.size();}
+
+    void Fill(XCDFFile& f) {
+
+      std::vector<NumericalExpression<double> > nes;
+      for (unsigned i = 0; i < exprs_.size(); ++i) {
+        nes.push_back(NumericalExpression<double>(exprs_[i], f));
+      }
+
+      while (f.Read()) {
+        for (unsigned i = 0; i < exprs_.size(); ++i) {
+          rts_[i].Fill(nes[i].Evaluate());
+        }
+      }
+    }
+
+  private:
+
+    std::vector<std::string> exprs_;
+    std::vector<RangeTest> rts_;
 };
 
 std::ostream& operator<<(std::ostream& out, const Histogram1D& h) {
