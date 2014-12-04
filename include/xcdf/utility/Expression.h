@@ -171,6 +171,7 @@ class Expression {
 
       // Parsing failure
       XCDFFatal("Cannot parse expression \"" << valueString << "\"");
+      return NULL;
     }
 
     Symbol* ParseOperator(const std::string& exp,
