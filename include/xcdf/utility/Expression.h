@@ -130,67 +130,48 @@ class Expression {
       size_t endpos = exp.find_last_not_of(" \n\r\t", operpos - 1);
       std::string valueString = exp.substr(startpos, endpos - startpos + 1);
 
-      size_t firstpm = valueString.find_first_of("+-");
-      if (firstpm != std::string::npos) {
+      // If leading +/- is an operator, we have to deal with it here
+      if (valueString.find_first_of("+-") == 0) {
 
         // Need to deal with + or - symbols.  If previous symbol is a
         // value or ')' and first character is +/-, it is an operator.
-        if (parsedSymbols_.size() > 0) {
-          if (firstpm == 0 &&
+        if (parsedSymbols_.size() > 0 &&
                       (parsedSymbols_.back()->IsNode() ||
                        parsedSymbols_.back()->GetType() == CLOSE_PARAND)) {
             return ParseOperator(exp, pos);
+        }
+      }
+
+      // There is at least one value at the front of this expression.  Try
+      // parsing the largest value possible and iteratively reducing the
+      // scope on failure
+      while (endpos != std::string::npos && endpos >= startpos) {
+        std::string testString = exp.substr(startpos, endpos - startpos + 1);
+        Symbol* val = ParseValueImpl(testString);
+        if (val) {
+
+          // Check validity
+          if (val->IsFunction()) {
+
+            // Expect "(" next
+            if (operpos == std::string::npos) {
+              XCDFFatal("Missing \"(\" after " << *val);
+            } else if (exp[operpos] != '(') {
+              XCDFFatal("Missing \"(\" after " << *val);
+            }
           }
+
+          pos = endpos + 1;
+          return val;
         }
 
-        // It is a value.  First check if first segment is the name of a field
-        if (firstpm > 0) {
-          size_t lastChar = valueString.find_last_not_of(" \n\r\t", firstpm - 1);
-          std::string testName = valueString.substr(0, lastChar + 1);
-          if (f_.HasField(testName)) {
-            pos += firstpm;
-            Symbol* val = ParseValueImpl(testName, false);
-            assert(val);
-            return val;
-          }
-        }
-
-        // It is a numerical.  Parse it as the longest numerical
-        // possible to catch valid cases like -3.14159e+00
-        Symbol* val = ParseNumerical(valueString);
-        pos = operpos;
-
-        if (!val) {
-          // This is user error.
-          XCDFFatal("Cannot parse expression \"" << valueString << "\"");
-        }
-
-        return val;
+        // Next loop: skip to before last +/-
+        endpos = exp.find_last_of("+-", endpos) - 1;
       }
 
-      // Token is a simple value
-      pos = endpos + 1;
-      bool requireFunctional = false;
-      if (operpos != std::string::npos) {
-        if (exp[operpos] == '(') {
-          requireFunctional = true;
-        }
-      }
-      Symbol* val = ParseValueImpl(valueString, requireFunctional);
-      if (!val) {
-        XCDFFatal("Unable to parse symbol \"" << valueString << "\"");
-      }
-
-      if (val->IsFunction()) {
-
-        // Expect "(" next
-        if (operpos == std::string::npos) {
-          XCDFFatal("Missing \"(\" after " << *val);
-        } else if (exp[operpos] != '(') {
-          XCDFFatal("Missing \"(\" after " << *val);
-        }
-      }
-      return val;
+      // Parsing failure
+      XCDFFatal("Cannot parse expression \"" << valueString << "\"");
+      return NULL;
     }
 
     Symbol* ParseOperator(const std::string& exp,
@@ -237,7 +218,12 @@ class Expression {
 
     Symbol* ParseNumerical(const std::string& numerical) const {
 
-      Symbol* out = DoConstNode<uint64_t>(numerical, std::hex);
+      Symbol* out = NULL;
+      // Parse hex only if we have leading x or X
+      char hex[2] = {'X', 'x'};
+      if (numerical.find(hex) != std::string::npos) {
+        out = DoConstNode<uint64_t>(numerical, std::hex);
+      }
       if (!out) {
         out = DoConstNode<uint64_t>(numerical, std::dec);
       }
@@ -250,22 +236,21 @@ class Expression {
       return out;
     }
 
-    Symbol* ParseValueImpl(std::string exp, bool requireFunctional) const {
+    Symbol* ParseValueImpl(std::string exp) const {
 
-      if (!requireFunctional) {
-        if (f_.HasField(exp)) {
+      // First try string as a field
+      if (f_.HasField(exp)) {
 
-          // An XCDF field
-          if (f_.IsUnsignedIntegerField(exp)) {
-            return new FieldNode<uint64_t>(f_.GetUnsignedIntegerField(exp));
-          }
-
-          if (f_.IsSignedIntegerField(exp)) {
-            return new FieldNode<int64_t>(f_.GetSignedIntegerField(exp));
-          }
-
-          return new FieldNode<double>(f_.GetFloatingPointField(exp));
+        // An XCDF field
+        if (f_.IsUnsignedIntegerField(exp)) {
+          return new FieldNode<uint64_t>(f_.GetUnsignedIntegerField(exp));
         }
+
+        if (f_.IsSignedIntegerField(exp)) {
+          return new FieldNode<int64_t>(f_.GetSignedIntegerField(exp));
+        }
+
+        return new FieldNode<double>(f_.GetFloatingPointField(exp));
       }
 
       // "currentEventNumber" refers to the event count and is reserved

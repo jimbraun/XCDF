@@ -1,10 +1,12 @@
 
 #include <xcdf/utility/XCDFUtility.h>
 #include <xcdf/utility/EventSelectExpression.h>
+#include <xcdf/utility/Histogram.h>
 #include <xcdf/XCDFDefs.h>
 #include <xcdf/config.h>
 
 #include <set>
+#include <sstream>
 
 void Info(std::vector<std::string>& infiles) {
 
@@ -212,7 +214,7 @@ void Check(std::vector<std::string>& infiles) {
   }
 }
 
-std::set<std::string> ParseFields(std::string& exp) {
+std::set<std::string> ParseCSV(std::string& exp) {
 
   std::set<std::string> fields;
 
@@ -256,7 +258,7 @@ void SelectFields(std::vector<std::string>& infiles,
 
   XCDFFile outFile(out);
   outFile.AddComment(concatArgs);
-  std::set<std::string> fields = ParseFields(exp);
+  std::set<std::string> fields = ParseCSV(exp);
 
   FieldCopyBuffer buf(outFile);
 
@@ -515,6 +517,111 @@ void AddComment(std::vector<std::string>& infiles,
   outFile.Close();
 }
 
+template <typename Histogram, typename FillPolicy>
+void FillHistogram(std::vector<std::string>& infiles,
+                   Histogram& h, FillPolicy& fill) {
+
+  XCDFFile f;
+  for (unsigned i = 0; i <= infiles.size(); ++i) {
+
+    if (i == infiles.size()) {
+      if (infiles.size() == 0) {
+        //read from stdin
+        f.Open(std::cin);
+      } else {
+        continue;
+      }
+    } else {
+      f.Open(infiles[i], "r");
+    }
+
+    fill.Fill(h, f);
+  }
+}
+
+template <typename T>
+bool Extract(std::string& s, T& out) {
+
+  std::stringstream ss(s);
+  ss >> out;
+  return ss.fail();
+}
+
+void Histogram(std::vector<std::string>& infiles,
+               std::string& exp) {
+
+  // Parse CSV expression
+  std::vector<std::string> args;
+  char* expPtr = const_cast<char*>(exp.c_str());
+  for (char* tok = strtok(expPtr, ","); tok != NULL;
+                                        tok = strtok(NULL, ",")) {
+
+    std::string str(tok);
+
+    // Trim leading and trailing whitespace
+    size_t endPos = str.find_last_not_of(" \n\r\t");
+    if(endPos != std::string::npos) {
+      str = str.substr(0, endPos+1);
+    }
+
+    size_t startPos = str.find_first_not_of(" \n\r\t");
+    if(startPos != std::string::npos) {
+      str = str.substr(startPos);
+    }
+
+    args.push_back(str);
+  }
+
+  if (!(args.size() == 4 || args.size() == 5 ||
+        args.size() == 8 || args.size() == 9)) {
+    std::cerr << "Invalid histogram args: " << exp << std::endl;
+    return;
+  }
+
+  unsigned nbins, nbinsY;
+  double min, max, minY, maxY;
+  std::string expr, exprY;
+  std::string weightExpr = "1.";
+  bool fail = false;
+  fail |= Extract(args[0], nbins);
+  fail |= Extract(args[1], min);
+  fail |= Extract(args[2], max);
+  expr = args[3];
+  if (args.size() == 5) {
+    weightExpr = args[4];
+  }
+
+  if (fail) {
+    std::cerr << "Invalid histogram args: " << exp << std::endl;
+    return;
+  }
+  if (args.size() == 4 || args.size() == 5) {
+    Histogram1D h(nbins, min, max);
+    Filler1D fill(expr, weightExpr);
+    FillHistogram(infiles, h, fill);
+    std::cout << h;
+    return;
+  } else {
+
+    fail |= Extract(args[4], nbinsY);
+    fail |= Extract(args[5], minY);
+    fail |= Extract(args[6], maxY);
+    exprY = args[7];
+    if (args.size() == 9) {
+      weightExpr = args[8];
+    }
+    if (fail) {
+      std::cerr << "Invalid histogram args: " << exp << std::endl;
+      return;
+    }
+    Histogram2D h(nbins, min, max, nbinsY, minY, maxY);
+    Filler2D fill(expr, exprY, weightExpr);
+    FillHistogram(infiles, h, fill);
+    std::cout << h;
+    return;
+  }
+}
+
 void Paste(std::vector<std::string>& infiles,
            std::ostream& out,
            std::string& copyFile,
@@ -641,6 +748,17 @@ void PrintUsage() {
 
     "    recover {-o outfile} {infiles} Recover a corrupt XCDF file.\n\n" <<
 
+    "    histogram \"histogram expression\" {infiles}:\n\n" <<
+    "                    Create a histogram from the selected files according to\n" <<
+    "                    the specified expression.  Valid expressions are of the form\n" <<
+    "                    \"nbins, min, max, expr\" for 1D histograms, and\n" <<
+    "                    \"nbinsX, minX, maxX, exprX, nbinsY, minY, maxY, exprY\" for 2D.\n" <<
+    "                    \"expr\" is of the form e.g. \"fieldName*3.14159\".\n" <<
+    "                    For both 1D and 2D, an optional expression may be appended\n" <<
+    "                    to weight the entry, e.g. \"100, 0, 1, field1, field2\" would\n" <<
+    "                    create a histogram of field1 with 100 bins from 0 to 1,\n" <<
+    "                    weighting each entry by the value of field2.\n\n" <<
+
     "    add-comment \"comment\" {-o outfile} {infiles} Add comment to an XCDF file\n\n" <<
 
     "    remove-comments {-o outfile} {infiles} Remove all comments from an XCDF file\n\n" <<
@@ -692,6 +810,16 @@ int main(int argc, char** argv) {
         outstream = &fout;
       }
     }
+  }
+
+  if (!verb.compare("histogram")) {
+
+    if (argc < 3) {
+      PrintUsage();
+      exit(1);
+    }
+
+    exp = std::string(argv[currentArg++]);
   }
 
   if (!verb.compare("select") ||
@@ -807,6 +935,10 @@ int main(int argc, char** argv) {
 
   else if (!verb.compare("version")) {
     PrintVersion();
+  }
+
+  else if (!verb.compare("histogram")) {
+    Histogram(infiles, exp);
   }
 
   else if (!verb.compare("compare")) {
