@@ -636,6 +636,7 @@ class XCDFFile {
 
   private:
 
+    // XCDFFile holds 3 references to each field in the below data structures
     // Allocated fields -- allocate for each data type
     std::map<std::string, XCDFDataManager<uint64_t> > unsignedIntegerFieldMap_;
     std::map<std::string, XCDFDataManager<int64_t> >  signedIntegerFieldMap_;

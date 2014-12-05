@@ -37,6 +37,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <cmath>
 #include <limits>
 #include <iostream>
+#include <iomanip>
 
 class Histogram1D {
 
@@ -375,9 +376,9 @@ class RangeChecker {
 
 std::ostream& operator<<(std::ostream& out, const Histogram1D& h) {
 
-  out << std::setw(11) << "X" << " Value" << std::endl;
+  out << std::setw(15) << "X" << " Value" << std::endl;
   for (unsigned i = 0; i < h.GetNBins(); ++i) {
-    out << std::setw(11) << h.GetBinCenter(i);
+    out << std::setw(15) << std::setprecision(10) << h.GetBinCenter(i);
     out << " " << h.GetData(i) << std::endl;
   }
   out << std::endl;

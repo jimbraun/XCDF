@@ -67,6 +67,12 @@ class XCDFBlockData {
       }
     }
 
+    void SkipDatum(const unsigned size) {
+      unsigned tot = size + buffer_.indexBits_;
+      buffer_.index_    += tot >> 3;   // tot/8
+      buffer_.indexBits_ = tot & 0x07; // tot%8
+    }
+
     void Clear() {buffer_.Clear();}
 
     void Shrink() {buffer_.Shrink();}

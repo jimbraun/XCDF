@@ -149,6 +149,7 @@ class XCDFDataManager {
     uint32_t GetSize() const {return field_.GetSize();}
 
     const std::string& GetName() const {return field_.GetName();}
+    unsigned GetReferenceCount() const {return field_.GetReferenceCount();}
 
     /*
      * Get the minimum value of the field in the current block.

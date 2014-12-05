@@ -91,6 +91,10 @@ class XCDFField {
 
     XCDFPtr<XCDFFieldData<T> > fieldData_;
 
+    unsigned GetReferenceCount() const {
+      return fieldData_.GetReferenceCount();
+    }
+
   template <typename V> friend class XCDFDataManager;
 };
 

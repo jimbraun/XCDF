@@ -54,8 +54,7 @@ class XCDFFieldData {
                                   activeMin_(0),
                                   activeMax_(0),
                                   isSet_(false),
-                                  activeSize_(SIZE_UNSET),
-                                  referenceCount_(0) { }
+                                  activeSize_(SIZE_UNSET) { }
 
     ~XCDFFieldData() { }
 
@@ -103,10 +102,6 @@ class XCDFFieldData {
 
     const std::string& GetName() const {return name_;}
 
-    void IncrementReferenceCount() {++referenceCount_;}
-    void DecrementReferenceCount() {--referenceCount_;}
-    bool HasReferences() const {return referenceCount_ != 0;}
-
   private:
 
     std::string name_;
@@ -119,7 +114,6 @@ class XCDFFieldData {
     bool isSet_;
 
     uint32_t activeSize_;
-    uint32_t referenceCount_;
 
     void DoAdd(const T value) {
 
