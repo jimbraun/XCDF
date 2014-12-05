@@ -517,6 +517,32 @@ void AddComment(std::vector<std::string>& infiles,
   outFile.Close();
 }
 
+void Comments(std::vector<std::string>& infiles,
+              std::ostream& out) {
+
+  XCDFFile f;
+  for (unsigned i = 0; i <= infiles.size(); ++i) {
+
+    if (i == infiles.size()) {
+      if (infiles.size() == 0) {
+        //read from stdin
+        f.Open(std::cin);
+      } else {
+        continue;
+      }
+    } else {
+      f.Open(infiles[i], "r");
+    }
+
+    for (std::vector<std::string>::const_iterator
+                                   it = f.CommentsBegin();
+                                   it != f.CommentsEnd(); ++it) {
+
+      out << *it << std::endl;
+    }
+  }
+}
+
 template <typename Histogram, typename FillPolicy>
 void FillHistogram(std::vector<std::string>& infiles,
                    Histogram& h, FillPolicy& fill) {
@@ -861,6 +887,8 @@ void PrintUsage() {
     "                    and max.  An optional expression may be appended to weight the\n" <<
     "                    entry.\n\n" <<
 
+    "    comments {infiles} Display all comments from an XCDF file\n\n" <<
+
     "    add-comment \"comment\" {-o outfile} {infiles} Add comment to an XCDF file\n\n" <<
 
     "    remove-comments {-o outfile} {infiles} Remove all comments from an XCDF file\n\n" <<
@@ -1018,6 +1046,10 @@ int main(int argc, char** argv) {
 
   else if (!verb.compare("add-comment")) {
     AddComment(infiles, *outstream, exp);
+  }
+
+  else if (!verb.compare("comments")) {
+    Comments(infiles, *outstream);
   }
 
   else if (!verb.compare("select-fields")) {

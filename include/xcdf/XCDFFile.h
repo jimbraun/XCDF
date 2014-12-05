@@ -440,17 +440,29 @@ class XCDFFile {
     }
 
     /// Get an iterator to the beginning of the comment list
-    std::vector<std::string>::const_iterator CommentsBegin() const {
+    std::vector<std::string>::const_iterator CommentsBegin() {
+      if (!isModifiable_ && !blockTableComplete_) {
+        // Get the event count, causing all trailers to be read
+        GetEventCount();
+      }
       return fileTrailer_.CommentsBegin();
     }
 
     /// Get an iterator to the end of the comment list
-    std::vector<std::string>::const_iterator CommentsEnd() const {
+    std::vector<std::string>::const_iterator CommentsEnd() {
+      if (!isModifiable_ && !blockTableComplete_) {
+        // Get the event count, causing all trailers to be read
+        GetEventCount();
+      }
       return fileTrailer_.CommentsEnd();
     }
 
     /// Get the number of comments
-    unsigned GetNComments() const {
+    unsigned GetNComments() {
+      if (!isModifiable_ && !blockTableComplete_) {
+        // Get the event count, causing all trailers to be read
+        GetEventCount();
+      }
       return fileTrailer_.GetNComments();
     }
 
