@@ -14,6 +14,7 @@ class ReferenceCount {
 
 	  unsigned AddReference() {return ++referenceCnt_;}
 	  unsigned RemoveReference() {return --referenceCnt_;}
+	  unsigned GetCount() const {return referenceCnt_;}
 
   private:
 
@@ -55,6 +56,9 @@ class XCDFPtr {
     T* operator->() const {return t_;}
 
     bool IsNull() const {return t_ == NULL;}
+    unsigned GetReferenceCount() const {
+      return rc_ == NULL ? 0 : rc_->GetCount();
+    }
 
   private:
 
@@ -67,6 +71,8 @@ class XCDFPtr {
   	    if (rc_->RemoveReference() == 0) {
 	        delete t_;
 	        delete rc_;
+	        t_ = NULL;
+	        rc_ = NULL;
 	      }
 	    }
 	  }

@@ -166,7 +166,7 @@ class ReadFieldVisitor {
 
         // Only read one entry
         manager.AddIntegerRepresentation(
-                           blockData_.GetDatum(manager.GetActiveSize()));
+                             blockData_.GetDatum(manager.GetActiveSize()));
       }
     }
 
