@@ -51,6 +51,8 @@ void XCDFFile::Init() {
   currentFileStartOffset_ = 0;
   currentFrameStartOffset_ = 0;
   currentFrameEndOffset_ = 0;
+
+  currentFileName_ = "";
 }
 
 /*
@@ -133,6 +135,8 @@ void XCDFFile::Close() {
   currentFileStartOffset_ = 0;
   currentFrameStartOffset_ = 0;
   currentFrameEndOffset_ = 0;
+
+  currentFileName_ = "";
 }
 
 /*
@@ -212,6 +216,7 @@ bool XCDFFile::Open(const char* fileName,
     }
   }
 
+  currentFileName_ = std::string(fileName);
   return isOpen_;
 }
 

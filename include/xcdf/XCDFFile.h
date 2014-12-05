@@ -112,6 +112,7 @@ class XCDFFile {
 
       streamHandler_.SetInputStream(istream);
       isModifiable_ = false;
+      currentFileName_ = "Unnamed input stream";
       ReadFileHeaders();
     }
 
@@ -122,7 +123,7 @@ class XCDFFile {
         Close();
       }
       isOpen_ = true;
-
+      currentFileName_ = "Unnamed output stream";
       streamHandler_.SetOutputStream(ostream);
     }
 
@@ -135,6 +136,7 @@ class XCDFFile {
     bool IsWritable() const {return streamHandler_.IsWritable();}
     bool IsReadable() const {return streamHandler_.IsReadable();}
     bool IsOpen() const {return isOpen_;}
+    const std::string& GetCurrentFileName() const {return currentFileName_;}
 
     /*
      *   Write the next event.  Return:
@@ -671,6 +673,7 @@ class XCDFFile {
     bool isOpen_;
     bool isAppend_;
     bool checkedReadForAppendFlag_;
+    std::string currentFileName_;
 
     // Memory buffer to store data block as it is written.  Determine
     // max/min when block is complete.
