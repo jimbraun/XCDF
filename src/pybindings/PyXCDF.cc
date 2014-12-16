@@ -133,26 +133,32 @@ XCDFRecordIterator_iternext(PyObject* self)
 {
   XCDFRecordIterator* p = (XCDFRecordIterator*)self;
 
-  // If we have not reached the end of the file:
-  if (p->iCurrent_ < p->iTotal_ && p->file_->Read() > 0)
-  {
-    p->iCurrent_ = p->file_->GetCurrentEventNumber();
-    if (p->iCurrent_ < 0) {
+  try {
+
+    // If we have not reached the end of the file:
+    if (p->iCurrent_ < p->iTotal_ && p->file_->Read() > 0)
+    {
+      p->iCurrent_ = p->file_->GetCurrentEventNumber();
+      if (p->iCurrent_ < 0) {
+        PyErr_SetNone(PyExc_StopIteration);
+        return NULL;
+      }
+
+      // Create a field visitor to stuff data into a tuple
+      TupleSetter tsetter(p->file_->GetNFields());
+      p->file_->ApplyFieldVisitor(tsetter);
+
+      PyObject* result(tsetter.GetTuple());
+      return result;
+    }
+    // When reaching EOF, rewind the XCDF file and stop the iterator
+    else {
+      p->file_->Rewind();
       PyErr_SetNone(PyExc_StopIteration);
       return NULL;
     }
-
-    // Create a field visitor to stuff data into a tuple
-    TupleSetter tsetter(p->file_->GetNFields());
-    p->file_->ApplyFieldVisitor(tsetter);
-
-    PyObject* result(tsetter.GetTuple());
-    return result;
-  }
-  // When reaching EOF, rewind the XCDF file and stop the iterator
-  else {
-    p->file_->Rewind();
-    PyErr_SetNone(PyExc_StopIteration);
+  } catch (const XCDFException& e) {
+    PyErr_SetString(PyExc_IOError, e.GetMessage().c_str());
     return NULL;
   }
 }
@@ -221,26 +227,35 @@ XCDFFieldIterator_iternext(PyObject* self)
 {
   XCDFFieldIterator* p = (XCDFFieldIterator*)self;
 
-  // If we have not reached the end of the file:
-  if (p->iCurrent_ < p->iTotal_ && p->file_->Read() > 0)
-  {
-    p->iCurrent_ = p->file_->GetCurrentEventNumber();
-    if (p->iCurrent_ < 0) {
+  try {
+
+    // If we have not reached the end of the file:
+    if (p->iCurrent_ < p->iTotal_ && p->file_->Read() > 0)
+    {
+      p->iCurrent_ = p->file_->GetCurrentEventNumber();
+      if (p->iCurrent_ < 0) {
+        PyErr_SetNone(PyExc_StopIteration);
+        return NULL;
+      }
+
+      // Create a field visitor to stuff data into a tuple
+      // FieldsByNameSelector requires std::string&, so create one here
+      // that we can pass as a reference.
+      std::string names(PyString_AsString(p->fieldNames_));
+      FieldsByNameSelector fsetter(names);
+      p->file_->ApplyFieldVisitor(fsetter);
+
+      PyObject* result(fsetter.GetTuple());
+      return result;
+    }
+    // When reaching EOF, rewind the XCDF file and stop the iterator
+    else {
+      p->file_->Rewind();
       PyErr_SetNone(PyExc_StopIteration);
       return NULL;
     }
-
-    // Create a field visitor to stuff data into a tuple
-    FieldsByNameSelector fsetter(PyString_AsString(p->fieldNames_));
-    p->file_->ApplyFieldVisitor(fsetter);
-
-    PyObject* result(fsetter.GetTuple());
-    return result;
-  }
-  // When reaching EOF, rewind the XCDF file and stop the iterator
-  else {
-    p->file_->Rewind();
-    PyErr_SetNone(PyExc_StopIteration);
+  } catch (const XCDFException& e) {
+    PyErr_SetString(PyExc_IOError, e.GetMessage().c_str());
     return NULL;
   }
 }
