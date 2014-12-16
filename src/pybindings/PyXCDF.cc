@@ -375,8 +375,9 @@ XCDFRecord_iterator(pyxcdf_XCDFFile* self)
     return NULL;
   }
 
+  XCDFRecordIterator* it = NULL;
   try {
-    XCDFRecordIterator* it = (XCDFRecordIterator*)
+    it = (XCDFRecordIterator*)
            PyObject_CallObject((PyObject*)&XCDFRecordIteratorType, NULL);
 
     if (!it) {
@@ -392,6 +393,9 @@ XCDFRecord_iterator(pyxcdf_XCDFFile* self)
   }
   catch (const XCDFException& e) {
     PyErr_SetString(PyExc_IOError, e.GetMessage().c_str());
+    if (it) {
+      Py_DECREF(it);
+    }
     return NULL;
   }
 }
@@ -406,8 +410,9 @@ XCDFField_iterator(pyxcdf_XCDFFile* self, PyObject* fieldName)
     return NULL;
   }
 
+  XCDFFieldIterator* it = NULL;
   try {
-    XCDFFieldIterator* it = (XCDFFieldIterator*)
+    it = (XCDFFieldIterator*)
            PyObject_CallObject((PyObject*)&XCDFFieldIteratorType, NULL);
 
     if (!it) {
@@ -424,6 +429,9 @@ XCDFField_iterator(pyxcdf_XCDFFile* self, PyObject* fieldName)
   }
   catch (const XCDFException& e) {
     PyErr_SetString(PyExc_IOError, e.GetMessage().c_str());
+    if (it) {
+      Py_DECREF(it);
+    }
     return NULL;
   }
 }
@@ -438,10 +446,10 @@ XCDFFile_getRecord(pyxcdf_XCDFFile* self, PyObject* recordId)
     return NULL;
   }
 
+  PyObject* result = NULL;
   try {
     // Seek to a given record ID in the file
     uint64_t id = PyInt_AsUnsignedLongLongMask(recordId);
-    PyObject* result = NULL;
 
     if (self->file_->Seek(id)) {
 
@@ -462,6 +470,9 @@ XCDFFile_getRecord(pyxcdf_XCDFFile* self, PyObject* recordId)
   }
   catch (const XCDFException& e) {
     PyErr_SetString(PyExc_IOError, e.GetMessage().c_str());
+    if (result) {
+      Py_DECREF(result);
+    }
     return NULL;
   }
 }
@@ -518,6 +529,7 @@ XCDFFile_addField(pyxcdf_XCDFFile* self, PyObject* args)
         break;
       }
       default:
+        Py_INCREF(Py_False);
         return Py_False;
     }
   }
@@ -526,6 +538,7 @@ XCDFFile_addField(pyxcdf_XCDFFile* self, PyObject* args)
     return NULL;
   }
 
+  Py_INCREF(Py_True);
   return Py_True;
 }
 
