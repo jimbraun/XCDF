@@ -75,7 +75,7 @@ XCDFFile_init(pyxcdf_XCDFFile* self, PyObject* args)
     }
     catch (const XCDFException& e) {
       PyErr_SetString(PyExc_IOError, e.GetMessage().c_str());
-      return 1;
+      return -1;
     }
   }
 
