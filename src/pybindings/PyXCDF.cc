@@ -225,7 +225,10 @@ XCDFFieldIterator_iternext(PyObject* self)
     }
 
     // Create a field visitor to stuff data into a tuple
-    FieldsByNameSelector fsetter(PyString_AsString(p->fieldNames_));
+    // FieldsByNameSelector requires std::string&, so create one here
+    // that we can pass as a reference.
+    std::string names(PyString_AsString(p->fieldNames_));
+    FieldsByNameSelector fsetter(names);
     p->file_->ApplyFieldVisitor(fsetter);
 
     PyObject* result(fsetter.GetTuple());
