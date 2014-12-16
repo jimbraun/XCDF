@@ -113,10 +113,19 @@ typedef struct {
   int iTotal_;                          // total number of records in file
 } XCDFRecordIterator;
 
+// Define __init__
+static int
+XCDFRecordIterator_init(XCDFRecordIterator* self, PyObject* args) {
+
+  self->file_ = NULL;
+  self->iCurrent_ = self->iTotal_ = 0;
+  return 0;
+}
+
 // Define __del__
 static void
 XCDFRecordIterator_dealloc(XCDFRecordIterator* self) {
-  PyObject_Del(self);
+  self->ob_type->tp_free((PyObject*)self);
 }
 
 // Define __iter__()
@@ -194,6 +203,17 @@ XCDFRecordIteratorType =
     0,                                          // tp_weaklistoffset
     (getiterfunc)XCDFRecordIterator_iter,       // tp_iter
     (iternextfunc)XCDFRecordIterator_iternext,  // tp_iternext
+    0,                                          // tp_methods
+    0,                                          // tp_members
+    0,                                          // tp_getset
+    0,                                          // tp_base
+    0,                                          // tp_dict
+    0,                                          // tp_descr_get
+    0,                                          // tp_descr_set
+    0,                                          // tp_dictoffset
+    (initproc)XCDFRecordIterator_init,          // tp_init
+    0,                                          // tp_alloc
+    PyType_GenericNew,                          // tp_new
 };
 
 // ________________________
@@ -206,11 +226,23 @@ typedef struct {
   PyObject* fieldNames_;              // name(s) of the field(s) to extract
 } XCDFFieldIterator;
 
+// Define __init__
+static int
+XCDFFieldIterator_init(XCDFFieldIterator* self, PyObject* args) {
+
+  PyObject* tmp = self->fieldNames_;
+  self->fieldNames_ = NULL;
+  Py_XDECREF(tmp);
+  self->file_ = NULL;
+  self->iCurrent_ = self->iTotal_ = 0;
+  return 0;
+}
+
 // Define __del__
 static void
 XCDFFieldIterator_dealloc(XCDFFieldIterator* self) {
   Py_XDECREF(self->fieldNames_);
-  PyObject_Del(self);
+  self->ob_type->tp_free((PyObject*)self);
 }
 
 // Define __iter__()
@@ -291,6 +323,17 @@ XCDFFieldIteratorType =
     0,                                          // tp_weaklistoffset
     (getiterfunc)XCDFFieldIterator_iter,        // tp_iter
     (iternextfunc)XCDFFieldIterator_iternext,   // tp_iternext
+    0,                                          // tp_methods
+    0,                                          // tp_members
+    0,                                          // tp_getset
+    0,                                          // tp_base
+    0,                                          // tp_dict
+    0,                                          // tp_descr_get
+    0,                                          // tp_descr_set
+    0,                                          // tp_dictoffset
+    (initproc)XCDFFieldIterator_init,           // tp_init
+    0,                                          // tp_alloc
+    PyType_GenericNew,                          // tp_new
 };
 
 // __________________________
@@ -333,17 +376,11 @@ XCDFRecord_iterator(pyxcdf_XCDFFile* self)
   }
 
   try {
-    XCDFRecordIterator* it =
-          PyObject_New(XCDFRecordIterator, &XCDFRecordIteratorType);
+    XCDFRecordIterator* it = (XCDFRecordIterator*)
+           PyObject_CallObject((PyObject*)&XCDFRecordIteratorType, NULL);
 
     if (!it) {
       std::cerr << "Record iterator is NULL" << std::endl;
-      return NULL;
-    }
-
-    if (!PyObject_Init((PyObject*)it, &XCDFRecordIteratorType)) {
-      std::cerr << "Record iterator could not be initialized" << std::endl;
-      Py_DECREF(it);
       return NULL;
     }
 
@@ -370,20 +407,11 @@ XCDFField_iterator(pyxcdf_XCDFFile* self, PyObject* fieldName)
   }
 
   try {
-    XCDFFieldIterator* it =
-          PyObject_New(XCDFFieldIterator, &XCDFFieldIteratorType);
+    XCDFFieldIterator* it = (XCDFFieldIterator*)
+           PyObject_CallObject((PyObject*)&XCDFFieldIteratorType, NULL);
 
     if (!it) {
       std::cerr << "Field iterator is NULL" << std::endl;
-      return NULL;
-    }
-
-    // Set fieldNames_ to NULL so we don't try Py_DECREF if init fails
-    it->fieldNames_ = NULL;
-
-    if (!PyObject_Init((PyObject*)it, &XCDFFieldIteratorType)) {
-      std::cerr << "Field iterator could not be initialized" << std::endl;
-      Py_DECREF(it);
       return NULL;
     }
 
@@ -647,8 +675,13 @@ static PyMethodDef pyxcdf_methods[] =
   initpyxcdf(void)
   {
     // Enable creation of new XCDFFile objects
-    pyxcdf_XCDFFileType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&pyxcdf_XCDFFileType) < 0)
+      return;
+
+    if (PyType_Ready(&XCDFRecordIteratorType) < 0)
+      return;
+
+    if (PyType_Ready(&XCDFFieldIteratorType) < 0)
       return;
 
     PyObject* module = Py_InitModule3("pyxcdf", pyxcdf_methods,
