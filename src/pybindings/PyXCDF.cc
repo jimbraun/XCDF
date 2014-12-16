@@ -70,7 +70,13 @@ XCDFFile_init(pyxcdf_XCDFFile* self, PyObject* args)
     else
       strcpy(mode, "R");
 
-    self->file_ = new XCDFFile(PyString_AsString(filename), mode);
+    try {
+      self->file_ = new XCDFFile(PyString_AsString(filename), mode);
+    }
+    catch (const XCDFException& e) {
+      PyErr_SetString(PyExc_IOError, e.GetMessage().c_str());
+      return -1;
+    }
   }
 
   return 0;
@@ -308,6 +314,12 @@ XCDFFile_header(pyxcdf_XCDFFile* self)
 static PyObject*
 XCDFRecord_iterator(pyxcdf_XCDFFile* self)
 {
+  // Make sure the XCDF file is valid
+  if (self->file_ == NULL) {
+    PyErr_SetString(PyExc_AttributeError, "file: not open");
+    return NULL;
+  }
+
   try {
     XCDFRecordIterator* it =
           PyObject_New(XCDFRecordIterator, &XCDFRecordIteratorType);
@@ -339,6 +351,12 @@ XCDFRecord_iterator(pyxcdf_XCDFFile* self)
 static PyObject*
 XCDFField_iterator(pyxcdf_XCDFFile* self, PyObject* fieldName)
 {
+  // Make sure the XCDF file is valid
+  if (self->file_ == NULL) {
+    PyErr_SetString(PyExc_AttributeError, "file: not open");
+    return NULL;
+  }
+
   try {
     XCDFFieldIterator* it =
           PyObject_New(XCDFFieldIterator, &XCDFFieldIteratorType);
@@ -374,6 +392,12 @@ XCDFField_iterator(pyxcdf_XCDFFile* self, PyObject* fieldName)
 static PyObject*
 XCDFFile_getRecord(pyxcdf_XCDFFile* self, PyObject* recordId)
 {
+  // Make sure the XCDF file is valid
+  if (self->file_ == NULL) {
+    PyErr_SetString(PyExc_AttributeError, "file: not open");
+    return NULL;
+  }
+
   try {
     // Seek to a given record ID in the file
     uint64_t id = PyInt_AsUnsignedLongLongMask(recordId);
@@ -405,6 +429,12 @@ XCDFFile_getRecord(pyxcdf_XCDFFile* self, PyObject* recordId)
 static PyObject*
 XCDFFile_addField(pyxcdf_XCDFFile* self, PyObject* args)
 {
+  // Make sure the XCDF file is valid
+  if (self->file_ == NULL) {
+    PyErr_SetString(PyExc_AttributeError, "file: not open");
+    return NULL;
+  }
+
   try {
     PyObject *name = NULL;      // Field name
     PyObject *type = NULL;      // Field type (XCDF (un)signed integer/float)
