@@ -9,9 +9,9 @@
 #ifndef XCDFTYPECONVERSION_H_INCLUDED
 #define XCDFTYPECONVERSION_H_INCLUDED
 
-#include <xcdf/XCDFFile.h>
-
 #include <Python.h>
+
+#include <xcdf/XCDFFile.h>
 
 /*!
  * @brief XCDF type to python type converter.

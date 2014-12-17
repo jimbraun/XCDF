@@ -6,13 +6,14 @@
  * @version $Id: PyXCDF.cc 18676 2014-02-03 01:39:00Z sybenzvi $
  */
 
+#include <Python.h>
+
 #include <xcdf/XCDFFile.h>
 #include <XCDFTypeConversion.h>
 #include <XCDFHeaderVisitor.h>
 #include <XCDFTupleSetter.h>
 #include <XCDFFieldsByNameSelector.h>
 
-#include <Python.h>
 #include <structmember.h>
 
 #include <iomanip>
