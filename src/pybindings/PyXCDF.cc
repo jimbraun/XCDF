@@ -223,16 +223,17 @@ typedef struct {
   XCDFFile* file_;                      // pointer to current open XCDF file
   int iCurrent_;                        // current record being read
   int iTotal_;                          // total number of records in file
-  PyObject* fieldNames_;              // name(s) of the field(s) to extract
+  FieldsByNameSelector* selector_;      // Field extraction object
 } XCDFFieldIterator;
 
 // Define __init__
 static int
 XCDFFieldIterator_init(XCDFFieldIterator* self, PyObject* args) {
 
-  PyObject* tmp = self->fieldNames_;
-  self->fieldNames_ = NULL;
-  Py_XDECREF(tmp);
+  if (self->selector_) {
+    delete self->selector_;
+  }
+  self->selector_ = NULL;
   self->file_ = NULL;
   self->iCurrent_ = self->iTotal_ = 0;
   return 0;
@@ -241,7 +242,9 @@ XCDFFieldIterator_init(XCDFFieldIterator* self, PyObject* args) {
 // Define __del__
 static void
 XCDFFieldIterator_dealloc(XCDFFieldIterator* self) {
-  Py_XDECREF(self->fieldNames_);
+  if (self->selector_) {
+    delete self->selector_;
+  }
   self->ob_type->tp_free((PyObject*)self);
 }
 
@@ -269,16 +272,7 @@ XCDFFieldIterator_iternext(PyObject* self)
         PyErr_SetNone(PyExc_StopIteration);
         return NULL;
       }
-
-      // Create a field visitor to stuff data into a tuple
-      // FieldsByNameSelector requires std::string&, so create one here
-      // that we can pass as a reference.
-      std::string names(PyString_AsString(p->fieldNames_));
-      FieldsByNameSelector fsetter(names);
-      p->file_->ApplyFieldVisitor(fsetter);
-
-      PyObject* result(fsetter.GetTuple());
-      return result;
+      return p->selector_->GetTuple();
     }
     // When reaching EOF, rewind the XCDF file and stop the iterator
     else {
@@ -393,9 +387,7 @@ XCDFRecord_iterator(pyxcdf_XCDFFile* self)
   }
   catch (const XCDFException& e) {
     PyErr_SetString(PyExc_IOError, e.GetMessage().c_str());
-    if (it) {
-      Py_DECREF(it);
-    }
+    Py_XDECREF(it);
     return NULL;
   }
 }
@@ -423,15 +415,13 @@ XCDFField_iterator(pyxcdf_XCDFFile* self, PyObject* fieldName)
     it->file_ = self->file_;
     it->iCurrent_ = 0;
     it->iTotal_ = self->file_->GetEventCount();
-    it->fieldNames_ = fieldName;
-    Py_INCREF(it->fieldNames_);  //< We're keeping a copy
+    it->selector_ = new FieldsByNameSelector(
+                         PyString_AsString(fieldName), *(self->file_));
     return (PyObject*)it;
   }
   catch (const XCDFException& e) {
     PyErr_SetString(PyExc_IOError, e.GetMessage().c_str());
-    if (it) {
-      Py_DECREF(it);
-    }
+    Py_XDECREF(it);
     return NULL;
   }
 }
@@ -470,9 +460,7 @@ XCDFFile_getRecord(pyxcdf_XCDFFile* self, PyObject* recordId)
   }
   catch (const XCDFException& e) {
     PyErr_SetString(PyExc_IOError, e.GetMessage().c_str());
-    if (result) {
-      Py_DECREF(result);
-    }
+    Py_XDECREF(result);
     return NULL;
   }
 }

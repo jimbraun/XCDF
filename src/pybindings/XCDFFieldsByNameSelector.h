@@ -11,6 +11,7 @@
 #define XCDFFIELDSBYNAMESELECTOR_H_INCLUDED
 
 #include <xcdf/XCDFFile.h>
+#include <xcdf/XCDFField.h>
 #include <XCDFTypeConversion.h>
 
 #include <Python.h>
@@ -18,6 +19,7 @@
 #include <algorithm>
 #include <string>
 #include <vector>
+
 
 /*!
  * @class FieldsByNameSelector
@@ -28,17 +30,20 @@ class FieldsByNameSelector {
 
   public:
 
-    FieldsByNameSelector(const std::string& names) :
+    FieldsByNameSelector(const std::string& names,
+                         const XCDFFile& f) :
       nfields_(0)
     {
       // Parse name list assuming comma-separated values.
       size_t start = 0;
       size_t end = 0;
 
+      std::vector<std::string> fieldNames;
       while (end != std::string::npos) {
         end = names.find(",", start);
 
-        fieldNames_.push_back(
+
+        fieldNames.push_back(
           Trim(names.substr(
             start, end==std::string::npos ? std::string::npos : end-start))
         );
@@ -47,40 +52,42 @@ class FieldsByNameSelector {
                                                    end + 1);
       }
 
-      nfields_ = fieldNames_.size();
-      tuple_ = PyTuple_New(nfields_);
-    }
+      nfields_ = fieldNames.size();
+      for (int i = 0; i < nfields_; ++i) {
 
-    template<typename T>
-    void operator()(const XCDFField<T>& field) {
-      // Skip over fields not listed in the field list
-      std::vector<std::string>::iterator i =
-        std::find(fieldNames_.begin(), fieldNames_.end(), field.GetName());
-      if (i == fieldNames_.end())
-        return;
-
-      int idx = std::distance(fieldNames_.begin(), i);
-
-      size_t n = field.GetSize();
-      int err = 0;
-      if (n > 0) {
-        PyObject* result(xcdf2python(field));
-        err = PyTuple_SetItem(tuple_, idx, result);
-      }
-      else {
-        Py_INCREF(Py_None);
-        err = PyTuple_SetItem(tuple_, idx, Py_None);
+        if (f.IsUnsignedIntegerField(fieldNames[i])) {
+          unsignedFields_.push_back(f.GetUnsignedIntegerField(fieldNames[i]));
+          unsignedIndices_.push_back(i);
+        } else if (f.IsSignedIntegerField(fieldNames[i])) {
+          signedFields_.push_back(f.GetSignedIntegerField(fieldNames[i]));
+          signedIndices_.push_back(i);
+        } else {
+          // This will throw XCDFException if the field does not exist
+          floatFields_.push_back(f.GetFloatingPointField(fieldNames[i]));
+          floatIndices_.push_back(i);
+        }
       }
     }
 
     PyObject* GetTuple() const {
-      for (int i = 0; i < nfields_; ++i) {
-        if (PyTuple_GetItem(tuple_, i) == NULL) {
-          Py_INCREF(Py_None);
-          PyTuple_SetItem(tuple_, i, Py_None);
+      PyObject* tuple = PyTuple_New(nfields_);
+      int err = 0;
+      try {
+        for (int i = 0; i < unsignedFields_.size(); ++i) {
+          err = Insert(unsignedFields_[i], unsignedIndices_[i], tuple);
         }
+        for (int i = 0; i < signedFields_.size(); ++i) {
+          err = Insert(signedFields_[i], signedIndices_[i], tuple);
+        }
+        for (int i = 0; i < floatFields_.size(); ++i) {
+          err = Insert(floatFields_[i], floatIndices_[i], tuple);
+        }
+      } catch (const XCDFException& e) {
+        Py_DECREF(tuple);
+        PyErr_SetString(PyExc_IOError, e.GetMessage().c_str());
+        return NULL;
       }
-      return tuple_;
+      return tuple;
     }
 
     int GetNFields() const { return nfields_; }
@@ -88,9 +95,12 @@ class FieldsByNameSelector {
   private:
 
     int nfields_;
-    PyObject* tuple_;
-
-    std::vector<std::string> fieldNames_;
+    std::vector<XCDFUnsignedIntegerField> unsignedFields_;
+    std::vector<XCDFSignedIntegerField> signedFields_;
+    std::vector<XCDFFloatingPointField> floatFields_;
+    std::vector<unsigned> unsignedIndices_;
+    std::vector<unsigned> signedIndices_;
+    std::vector<unsigned> floatIndices_;
 
     std::string Trim(const std::string& s, const std::string& ws=" \t")
     {
@@ -101,6 +111,19 @@ class FieldsByNameSelector {
       const size_t end = s.find_last_not_of(ws);
       const size_t range = end - begin + 1;
       return s.substr(begin, range);
+    }
+
+    template <typename T>
+    int Insert(T& field, unsigned idx, PyObject* tuple) const {
+      int err = 0;
+      if (field.GetSize() > 0) {
+        PyObject* result(xcdf2python(field));
+        err = PyTuple_SetItem(tuple, idx, result);
+      } else {
+        Py_INCREF(Py_None);
+        err = PyTuple_SetItem(tuple, idx, Py_None);
+      }
+      return err;
     }
 
 };

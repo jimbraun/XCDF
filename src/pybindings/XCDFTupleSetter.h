@@ -13,6 +13,7 @@
 #include <XCDFTypeConversion.h>
 
 #include <Python.h>
+#include <algorithm>
 
 /*!
  * @class TupleSetter
@@ -28,6 +29,25 @@ class TupleSetter {
       tuple_(PyTuple_New(nfields))
     { }
 
+    TupleSetter(const TupleSetter& ts) : nfields_(ts.nfields_),
+                                         ifield_(ts.ifield_),
+                                         tuple_(ts.tuple_) {
+      Py_XINCREF(tuple_);
+    }
+
+    TupleSetter& operator=(TupleSetter ts) {
+
+      // Copy & swap
+      std::swap(nfields_, ts.nfields_);
+      std::swap(ifield_, ts.ifield_);
+      std::swap(tuple_, ts.tuple_);
+      return *this;
+    }
+
+    ~TupleSetter() {
+      Py_XDECREF(tuple_);
+    }
+
     template<typename T>
     void operator()(const XCDFField<T>& field) {
       size_t n = field.GetSize();
@@ -42,7 +62,11 @@ class TupleSetter {
       }
     }
 
-    PyObject* GetTuple() const { return tuple_; }
+    PyObject* GetTuple() {
+      PyObject* temp = tuple_;
+      tuple_ = NULL;
+      return temp;
+    }
 
     int GetNFields() const { return nfields_; }
 
@@ -51,7 +75,6 @@ class TupleSetter {
     int nfields_;
     int ifield_;
     PyObject* tuple_;
-
 };
 
 #endif // XCDFTUPLESETTER_H_INCLUDED
