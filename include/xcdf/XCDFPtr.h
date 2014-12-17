@@ -6,6 +6,8 @@
 #ifndef XCDF_PTR_INCLUDED_H
 #define XCDF_PTR_INCLUDED_H
 
+#include <algorithm>
+
 class ReferenceCount {
 
   public:
@@ -30,22 +32,12 @@ class XCDFPtr {
     XCDFPtr(T* t) : t_(t), rc_(new ReferenceCount()) { }
 	  XCDFPtr(const XCDFPtr<T>& p) : t_(p.t_), rc_(p.rc_) {AddReference();}
 
-	  XCDFPtr<T>& operator=(const XCDFPtr<T>& p) {
+	  XCDFPtr<T>& operator=(XCDFPtr<T> p) {
 
-      // Skip if self-assignment
-      if (this == &p) {
-        return *this;
-      }
-
-      // Check reference count for possible deallocation
-      DecrementReferenceCount();
-
-      // Copy pointers
-      t_ = p.t_;
-      rc_ = p.rc_;
-      AddReference();
-
-      return *this;
+	    // Copy & swap
+	    std::swap(t_, p.t_);
+	    std::swap(rc_, p.rc_);
+	    return *this;
 	  }
 
 	  ~XCDFPtr() {
