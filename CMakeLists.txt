@@ -52,11 +52,13 @@ IF (PYTHONLIBS_FOUND)
   MESSAGE (STATUS "Will build python bindings for XCDF")
 
   # Build the python bindings
+  # Python breaks strict-aliasing rules, so we must disable this optimization
   INCLUDE_DIRECTORIES (${PYTHON_INCLUDE_DIR})
   ADD_LIBRARY (pyxcdf MODULE src/pybindings/PyXCDF.cc)
   TARGET_LINK_LIBRARIES (pyxcdf xcdf ${PYTHON_LIBRARIES})
   SET_TARGET_PROPERTIES (pyxcdf PROPERTIES
     PREFIX ""
+    COMPILE_FLAGS "-fno-strict-aliasing"
     OUTPUTNAME pyxcdf)
   INSTALL (TARGETS pyxcdf LIBRARY DESTINATION lib/xcdf)
 

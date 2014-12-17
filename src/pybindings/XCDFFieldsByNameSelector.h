@@ -72,13 +72,13 @@ class FieldsByNameSelector {
     PyObject* GetTuple() const {
       PyObject* tuple = PyTuple_New(nfields_);
       try {
-        for (int i = 0; i < unsignedFields_.size(); ++i) {
+        for (unsigned i = 0; i < unsignedFields_.size(); ++i) {
           Insert(unsignedFields_[i], unsignedIndices_[i], tuple);
         }
-        for (int i = 0; i < signedFields_.size(); ++i) {
+        for (unsigned i = 0; i < signedFields_.size(); ++i) {
           Insert(signedFields_[i], signedIndices_[i], tuple);
         }
-        for (int i = 0; i < floatFields_.size(); ++i) {
+        for (unsigned i = 0; i < floatFields_.size(); ++i) {
           Insert(floatFields_[i], floatIndices_[i], tuple);
         }
       } catch (const XCDFException& e) {
