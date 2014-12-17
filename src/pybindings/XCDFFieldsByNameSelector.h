@@ -118,7 +118,11 @@ class FieldsByNameSelector {
       int err = 0;
       if (field.GetSize() > 0) {
         PyObject* result(xcdf2python(field));
-        err = PyTuple_SetItem(tuple, idx, result);
+        if (result == NULL) {
+          XCDFFatal("Error reading data from field: " << field.GetName())
+        } else {
+          err = PyTuple_SetItem(tuple, idx, result);
+        }
       } else {
         Py_INCREF(Py_None);
         err = PyTuple_SetItem(tuple, idx, Py_None);
