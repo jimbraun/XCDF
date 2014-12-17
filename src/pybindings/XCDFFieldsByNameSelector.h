@@ -71,16 +71,15 @@ class FieldsByNameSelector {
 
     PyObject* GetTuple() const {
       PyObject* tuple = PyTuple_New(nfields_);
-      int err = 0;
       try {
         for (int i = 0; i < unsignedFields_.size(); ++i) {
-          err = Insert(unsignedFields_[i], unsignedIndices_[i], tuple);
+          Insert(unsignedFields_[i], unsignedIndices_[i], tuple);
         }
         for (int i = 0; i < signedFields_.size(); ++i) {
-          err = Insert(signedFields_[i], signedIndices_[i], tuple);
+          Insert(signedFields_[i], signedIndices_[i], tuple);
         }
         for (int i = 0; i < floatFields_.size(); ++i) {
-          err = Insert(floatFields_[i], floatIndices_[i], tuple);
+          Insert(floatFields_[i], floatIndices_[i], tuple);
         }
       } catch (const XCDFException& e) {
         Py_DECREF(tuple);
@@ -114,12 +113,12 @@ class FieldsByNameSelector {
     }
 
     template <typename T>
-    int Insert(T& field, unsigned idx, PyObject* tuple) const {
+    void Insert(T& field, unsigned idx, PyObject* tuple) const {
       int err = 0;
       if (field.GetSize() > 0) {
         PyObject* result(xcdf2python(field));
         if (result == NULL) {
-          XCDFFatal("Error reading data from field: " << field.GetName())
+          XCDFFatal("Error inserting data into tuple");
         } else {
           err = PyTuple_SetItem(tuple, idx, result);
         }
@@ -127,7 +126,9 @@ class FieldsByNameSelector {
         Py_INCREF(Py_None);
         err = PyTuple_SetItem(tuple, idx, Py_None);
       }
-      return err;
+      if (err) {
+        XCDFFatal("Error inserting data into tuple");
+      }
     }
 
 };
