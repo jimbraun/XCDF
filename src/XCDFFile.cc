@@ -938,11 +938,6 @@ bool XCDFFile::Rewind() {
     XCDFFatal("XCDF Seek Failed: File not opened for reading");
   }
 
-  // Are we at the beginning already?
-  if (eventCount_ == 0) {
-    return true;
-  }
-
   // Try moving to the beginning
   if (!DoSeek(0)) {
     return false;
