@@ -16,6 +16,9 @@ IF (NOT PYTHON_FOUND)
 
   FIND_PACKAGE (PythonInterp REQUIRED QUIET)
 
+  # PYTHONHOME is defined: use that to determine which Python to use.
+  # Note that for homebrewed Pythons, it may be necessary to define PYTHONHOME
+  # as /usr/local to force XCDF to use it.
   IF (IS_DIRECTORY $ENV{PYTHONHOME})
     SET (PYTHONROOT $ENV{PYTHONHOME})
 
@@ -38,6 +41,11 @@ IF (NOT PYTHON_FOUND)
       PATHS $ENV{PYTHONHOME}/lib
       NO_SYSTEM_ENVIRONMENT_PATH
       NO_DEFAULT_PATH)
+
+    IF (PYTHON_LIBRARIES)
+      SET (PYTHONLIBS_FOUND TRUE)
+    ENDIF ()
+  # PYTHONHOME is not found; use the first Python we can find in the system
   ELSE ()
     EXECUTE_PROCESS (COMMAND python-config --prefix
       RESULT_VARIABLE _result
@@ -61,14 +69,6 @@ IF (NOT PYTHON_FOUND)
     SET (PYTHON_CONFIG_ERROR TRUE)
   ENDIF (NOT EXISTS "${PYTHON_INCLUDE_DIR}/Python.h")
 
-#  EXECUTE_PROCESS (COMMAND python-config --cppflags
-#    RESULT_VARIABLE _result
-#    OUTPUT_VARIABLE PYTHON_CPPFLAGS
-#    ERROR_QUIET)
-#  EXECUTE_PROCESS (COMMAND python-config --ldflags
-#    RESULT_VARIABLE _result
-#    OUTPUT_VARIABLE PYTHON_LDFLAGS
-#    ERROR_QUIET)
   SET (PYTHON_CPPFLAGS "-I${PYTHON_INCLUDE_DIR}")
   SET (PYTHON_LDFLAGS "${PYTHON_LIBRARIES}")
 
