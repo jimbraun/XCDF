@@ -658,7 +658,9 @@ class AbsNode : public Node<double> {
   public:
 
     AbsNode(Node<T>& node) : node_(node) { }
-    double operator[](unsigned idx) const {return fabs(node_[idx]);}
+    double operator[](unsigned idx) const {
+      return fabs(static_cast<double>(node_[idx]));
+    }
     unsigned GetSize() const {return node_.GetSize();}
 
   private:
