@@ -666,6 +666,21 @@ class AbsNode : public Node<double> {
     Node<T>& node_;
 };
 
+// Specialize for uint64_t to avoid snarky warnings from Clang
+template <>
+class AbsNode<uint64_t> : public Node<double> {
+
+  public:
+
+      AbsNode(Node<uint64_t>& node) : node_(node) { }
+      double operator[](unsigned idx) const {return static_cast<double>(node_[idx]);}
+      unsigned GetSize() const {return node_.GetSize();}
+
+    private:
+
+      Node<uint64_t>& node_;
+};
+
 template <typename T>
 class SqrtNode : public Node<double> {
 
