@@ -49,6 +49,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <istream>
 #include <cassert>
 #include <cctype>
+#include <algorithm>
 
 /*!
  * @class XCDFFile
@@ -303,38 +304,23 @@ class XCDFFile {
     }
 
     /*
-     *  Provide explicit GetField routines and typedefs to avoid the
-     *  certain errors due to incorrect template parameters (i.e.
-     *  GetField<float>() ).
+     *  Provide explicit GetField routines and typedefs to avoid errors
+     *  due to incorrect template parameters (i.e. GetField<float>() ).
      */
     XCDFUnsignedIntegerField
-    GetUnsignedIntegerField(const std::string& name) const {
-      std::map<std::string, XCDFDataManager<uint64_t> >::const_iterator
-                                   it = unsignedIntegerFieldMap_.find(name);
-      if (it == unsignedIntegerFieldMap_.end()) {
-        XCDFFatal("Field name: " << name << ": No such field");
-      }
-      return (it->second).GetField();
+    GetUnsignedIntegerField(const std::string& name) {
+      return DoGet(name, unsignedIntegerFieldMap_,
+                         unsignedIntegerReadFieldList_);
     }
 
     XCDFSignedIntegerField
-    GetSignedIntegerField(const std::string& name) const {
-      std::map<std::string, XCDFDataManager<int64_t> >::const_iterator
-                                  it = signedIntegerFieldMap_.find(name);
-      if (it == signedIntegerFieldMap_.end()) {
-        XCDFFatal("Field name: " << name << ": No such field");
-      }
-      return (it->second).GetField();
+    GetSignedIntegerField(const std::string& name) {
+      return DoGet(name, signedIntegerFieldMap_, signedIntegerReadFieldList_);
     }
 
     XCDFFloatingPointField
-    GetFloatingPointField(const std::string& name) const {
-      std::map<std::string, XCDFDataManager<double> >::const_iterator
-                                 it = floatingPointFieldMap_.find(name);
-      if (it == floatingPointFieldMap_.end()) {
-        XCDFFatal("Field name: " << name << ": No such field");
-      }
-      return (it->second).GetField();
+    GetFloatingPointField(const std::string& name) {
+      return DoGet(name, floatingPointFieldMap_, floatingPointReadFieldList_);
     }
 
     std::vector<XCDFUnsignedIntegerField>::iterator
@@ -503,8 +489,10 @@ class XCDFFile {
       }
 
       XCDFDataManager<double> manager =
-             AllocateField(name, XCDF_FLOATING_POINT, resolution, parentName);
+             AllocateField(name, XCDF_FLOATING_POINT,
+                           resolution, parentName, true);
       floatingPointFieldList_.push_back(manager);
+      floatingPointReadFieldList_.push_back(manager);
       floatingPointBareFieldList_.push_back(manager.GetField());
       floatingPointFieldMap_.insert(std::pair<std::string,
                   XCDFDataManager<double> >(name, manager));
@@ -545,8 +533,10 @@ class XCDFFile {
       CheckModifiable();
 
       XCDFDataManager<uint64_t> manager =
-           AllocateField(name, XCDF_UNSIGNED_INTEGER, resolution, parentName);
+           AllocateField(name, XCDF_UNSIGNED_INTEGER,
+                         resolution, parentName, true);
       unsignedIntegerFieldList_.push_back(manager);
+      unsignedIntegerReadFieldList_.push_back(manager);
       unsignedIntegerBareFieldList_.push_back(manager.GetField());
       unsignedIntegerFieldMap_.insert(std::pair<std::string,
                    XCDFDataManager<uint64_t> >(name, manager));
@@ -587,8 +577,10 @@ class XCDFFile {
       CheckModifiable();
 
       XCDFDataManager<int64_t> manager  =
-             AllocateField(name, XCDF_SIGNED_INTEGER, resolution, parentName);
+             AllocateField(name, XCDF_SIGNED_INTEGER,
+                           resolution, parentName, true);
       signedIntegerFieldList_.push_back(manager);
+      signedIntegerReadFieldList_.push_back(manager);
       signedIntegerBareFieldList_.push_back(manager.GetField());
       signedIntegerFieldMap_.insert(std::pair<std::string,
                    XCDFDataManager<int64_t> >(name, manager));
@@ -612,6 +604,7 @@ class XCDFFile {
      */
     template <typename T>
     void ApplyFieldVisitor(T& visitor) {
+      MarkAllFieldsForRead();
       for (std::vector<XCDFField<uint64_t> >::iterator
                             it = unsignedIntegerBareFieldList_.begin();
                             it != unsignedIntegerBareFieldList_.end(); ++it) {
@@ -623,25 +616,6 @@ class XCDFFile {
         visitor(*it);
       }
       for (std::vector<XCDFField<double> >::iterator
-                            it = floatingPointBareFieldList_.begin();
-                            it != floatingPointBareFieldList_.end(); ++it) {
-        visitor(*it);
-      }
-    }
-
-    template <typename T>
-    void ApplyFieldVisitor(T& visitor) const {
-      for (std::vector<XCDFField<uint64_t> >::const_iterator
-                            it = unsignedIntegerBareFieldList_.begin();
-                            it != unsignedIntegerBareFieldList_.end(); ++it) {
-        visitor(*it);
-      }
-      for (std::vector<XCDFField<int64_t> >::const_iterator
-                            it = signedIntegerBareFieldList_.begin();
-                            it != signedIntegerBareFieldList_.end(); ++it) {
-        visitor(*it);
-      }
-      for (std::vector<XCDFField<double> >::const_iterator
                             it = floatingPointBareFieldList_.begin();
                             it != floatingPointBareFieldList_.end(); ++it) {
         visitor(*it);
@@ -662,10 +636,21 @@ class XCDFFile {
     std::vector<XCDFDataManager<int64_t> >  signedIntegerFieldList_;
     std::vector<XCDFDataManager<double> >   floatingPointFieldList_;
 
+    // Also keep a list of the fields we should read from, to avoid overhead
+    // from reading fields we're not using
+    std::vector<XCDFDataManager<uint64_t> > unsignedIntegerReadFieldList_;
+    std::vector<XCDFDataManager<int64_t> >  signedIntegerReadFieldList_;
+    std::vector<XCDFDataManager<double> >   floatingPointReadFieldList_;
+
     // Keep a vector of just the XCDFField to provide generic user access
     std::vector<XCDFField<uint64_t> > unsignedIntegerBareFieldList_;
     std::vector<XCDFField<int64_t> >  signedIntegerBareFieldList_;
     std::vector<XCDFField<double> >   floatingPointBareFieldList_;
+
+    // Global data block to read XCDF version < 3
+    XCDFPtr<XCDFBlockData> globalBlock_;
+    // Are we reading all fields?
+    bool allFieldsRead_;
 
 
     // Configurable parameters
@@ -687,10 +672,6 @@ class XCDFFile {
     bool checkedReadForAppendFlag_;
     std::string currentFileName_;
 
-    // Memory buffer to store data block as it is written.  Determine
-    // max/min when block is complete.
-    XCDFUncompressedBlock uncompressedBlock_;
-
     // I/O frame.  Allocate only one copy for efficiency.
     XCDFFrame currentFrame_;
     std::streampos currentFileStartOffset_;
@@ -700,7 +681,6 @@ class XCDFFile {
     // Frame object pool.  Allocate only one copy for efficiency.
     XCDFFileHeader  fileHeader_;
     XCDFBlockHeader blockHeader_;
-    XCDFBlockData   blockData_;
     XCDFFileTrailer fileTrailer_;
 
     // I/O streams
@@ -721,6 +701,25 @@ class XCDFFile {
       for (std::vector<XCDFDataManager<double> >::iterator
                             it = floatingPointFieldList_.begin();
                             it != floatingPointFieldList_.end(); ++it) {
+        visitor(*it);
+      }
+    }
+
+    template <typename T>
+    void ApplyReadFieldManagerVisitor(T& visitor) {
+      for (std::vector<XCDFDataManager<uint64_t> >::iterator
+                            it = unsignedIntegerReadFieldList_.begin();
+                            it != unsignedIntegerReadFieldList_.end(); ++it) {
+        visitor(*it);
+      }
+      for (std::vector<XCDFDataManager<int64_t> >::iterator
+                            it = signedIntegerReadFieldList_.begin();
+                            it != signedIntegerReadFieldList_.end(); ++it) {
+        visitor(*it);
+      }
+      for (std::vector<XCDFDataManager<double> >::iterator
+                            it = floatingPointReadFieldList_.begin();
+                            it != floatingPointReadFieldList_.end(); ++it) {
         visitor(*it);
       }
     }
@@ -771,7 +770,8 @@ class XCDFFile {
     XCDFDataManager<T> AllocateField(const std::string& name,
                                      const XCDFFieldType type,
                                      const T resolution,
-                                     const std::string& parentName = "") {
+                                     const std::string& parentName = "",
+                                     bool addToHeader = false) {
 
       // Check if we already have a field with the given name
       if (HasField(name)) {
@@ -808,8 +808,10 @@ class XCDFFile {
                              " is reserved and cannot be used.");
       }
 
+      allFieldsRead_ = false;
+
       // If writing, put the descriptor into the header
-      if (IsWritable()) {
+      if (addToHeader) {
         XCDFFieldDescriptor descriptor;
         descriptor.name_ = name;
         descriptor.type_ = type;
@@ -821,16 +823,115 @@ class XCDFFile {
         fileHeader_.AddFieldDescriptor(descriptor);
       }
 
+      // If we're using version < 3, all managers read from the same block
+      XCDFPtr<XCDFBlockData> blockPtr = globalBlock_;
+      if (fileHeader_.GetVersion() >= 3) {
+        blockPtr = xcdf_shared(new XCDFBlockData());
+      }
+
       XCDFField<T> field(name, resolution);
       // Check parent if needed
       if (parentName.compare("")) {
         CheckParent(parentName);
         XCDFField<uint64_t> parent = GetUnsignedIntegerField(parentName);
-        return XCDFDataManager<T>(type, field, parent, true);
+        return XCDFDataManager<T>(type, field, parent, true, blockPtr);
       }
 
       // No parent
-      return XCDFDataManager<T>(type, field, XCDFField<uint64_t>(), false);
+      return XCDFDataManager<T>(type, field,
+                                XCDFField<uint64_t>(), false, blockPtr);
+    }
+
+    class NameMatch {
+
+      public:
+        NameMatch(const std::string& name) : name_(name) { }
+
+        template <typename T>
+        bool operator()(const XCDFDataManager<T>& manager) const {
+          return !(name_.compare(manager.GetName()));
+        }
+
+      private:
+        std::string name_;
+    };
+
+    template <typename T>
+    bool CheckReadAddField(const XCDFDataManager<T>& manager,
+                           std::vector<XCDFDataManager<T> >& readList) {
+
+      const std::string& name = manager.GetName();
+      if (std::find_if(readList.begin(),
+                       readList.end(), NameMatch(name)) == readList.end()) {
+        readList.push_back(manager);
+        return true;
+      }
+      return false;
+    }
+
+    template <typename T>
+    XCDFField<T>
+    DoGet(const std::string& name,
+          std::map<std::string, XCDFDataManager<T> >& map,
+          std::vector<XCDFDataManager<T> >& readList) {
+
+      typename std::map<std::string, XCDFDataManager<T> >::const_iterator
+                                                        it = map.find(name);
+      if (it == map.end()) {
+        XCDFFatal("Field name: " << name << ": No such field");
+      }
+      const XCDFDataManager<T>& manager = it->second;
+      // Make sure we're reading the field
+      if (fileHeader_.GetVersion() < 3) {
+        // We always read the field.  Nothing to do.
+        return manager.GetField();
+      }
+      // First check the parent if the field has one
+      bool added = false;
+      if (manager.HasParent()) {
+        // Has a parent.  Get the parent's data manager
+        std::map<std::string, XCDFDataManager<uint64_t> >::const_iterator it =
+                  unsignedIntegerFieldMap_.find(manager.GetParent().GetName());
+        assert (it != unsignedIntegerFieldMap_.end());
+        added |= CheckReadAddField(it->second,
+                                   unsignedIntegerReadFieldList_);
+      }
+      added |= CheckReadAddField(manager, readList);
+      // If we've added the field to the read list and we're not at the
+      // beginning, we need to re-read the entire block.
+      if (added) {
+        RereadEvents();
+      }
+      return manager.GetField();
+    }
+
+    friend class FrameWriteFieldVisitor;
+
+    void MarkAllFieldsForRead() {
+      if (!allFieldsRead_) {
+        allFieldsRead_ = true;
+        unsignedIntegerReadFieldList_ = unsignedIntegerFieldList_;
+        signedIntegerReadFieldList_ = signedIntegerFieldList_;
+        floatingPointReadFieldList_ = floatingPointFieldList_;
+        RereadEvents();
+      }
+    }
+
+    void RereadEvents() {
+      if (eventCount_ == 0) {
+        // No need to reread
+        return;
+      }
+      // Handle the first event specially, since we can't Seek(-1)
+      if (eventCount_ == 1) {
+        Rewind();
+      } else {
+        printf("Rewinding\n");
+        // Force re-read of the current block and seek to the previous event
+        Seek(eventCount_ - 2);
+      }
+      // Read back the current event
+      Read();
     }
 };
 

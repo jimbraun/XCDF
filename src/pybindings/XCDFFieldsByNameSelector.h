@@ -31,7 +31,7 @@ class FieldsByNameSelector {
   public:
 
     FieldsByNameSelector(const std::string& names,
-                         const XCDFFile& f) :
+                         XCDFFile& f) :
       nfields_(0)
     {
       // Parse name list assuming comma-separated values.

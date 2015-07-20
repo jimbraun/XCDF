@@ -31,31 +31,34 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <xcdf/XCDFBlockHeader.h>
 #include <xcdf/XCDFBlockData.h>
 #include <xcdf/XCDFUncompressedBlock.h>
+#include <xcdf/XCDFFrame.h>
+#include <xcdf/XCDFFile.h>
 
-class CheckFieldVisitor {
+class StoreUncompressedFieldVisitor {
   public:
 
-    CheckFieldVisitor() : nEntries_(0) { }
+    StoreUncompressedFieldVisitor() : byteCount_(0) { }
 
     template <typename T>
     void operator()(XCDFDataManager<T>& manager) {
-
-      unsigned expectedSize = 1;
-      if (manager.HasParent()) {
-        expectedSize = manager.GetParent().At(0);
-      }
-      if (manager.GetSize() != expectedSize) {
-        XCDFFatal("Field \"" << manager.GetName() << "\": Expected "
-               << expectedSize << " entries, got " << manager.GetSize());
-      }
-      nEntries_ += manager.GetSize();
+      byteCount_ += manager.StoreUncompressed();
     }
 
-    unsigned GetNEntries() {return nEntries_;}
+    // The total number of uncompressed bytes we're holding
+    uint64_t GetByteCount() const {return byteCount_;}
 
   private:
 
-    unsigned nEntries_;
+    uint64_t byteCount_;
+};
+
+class StoreCompressedFieldVisitor {
+  public:
+
+    StoreCompressedFieldVisitor() { }
+
+    template <typename T>
+    void operator()(XCDFDataManager<T>& manager) {manager.StoreCompressed();}
 };
 
 class UncompressedBufferWriteFieldVisitor {
@@ -148,61 +151,16 @@ class WriteFieldVisitor {
 
 class ReadFieldVisitor {
   public:
-
-    ReadFieldVisitor(XCDFBlockData& blockData) : blockData_(blockData) { }
     template <typename T>
-    void operator()(XCDFDataManager<T>& manager) {
-      if (manager.HasParent()) {
-
-        // How many entries do we read from the XCDFBlockData?
-        unsigned size = manager.GetParent().At(0);
-
-        // Add the integer data to the field
-        for (unsigned i = 0; i < size; ++i) {
-          manager.AddIntegerRepresentation(
-                           blockData_.GetDatum(manager.GetActiveSize()));
-        }
-      } else {
-
-        // Only read one entry
-        manager.AddIntegerRepresentation(
-                             blockData_.GetDatum(manager.GetActiveSize()));
-      }
-    }
-
-  private:
-
-    XCDFBlockData& blockData_;
+    void operator()(XCDFDataManager<T>& manager) {manager.ReadCompressed();}
 };
 
 class CheckedReadFieldVisitor {
   public:
-
-    CheckedReadFieldVisitor(XCDFBlockData& blockData) :
-                                     blockData_(blockData) { }
     template <typename T>
     void operator()(XCDFDataManager<T>& manager) {
-      if (manager.HasParent()) {
-
-        // How many entries do we read from the XCDFBlockData?
-        unsigned size = manager.GetParent().At(0);
-
-        // Add the integer data to the field
-        for (unsigned i = 0; i < size; ++i) {
-          manager.AddIntegerRepresentationAppend(
-                           blockData_.GetDatum(manager.GetActiveSize()));
-        }
-      } else {
-
-        // Only read one entry
-        manager.AddIntegerRepresentationAppend(
-                           blockData_.GetDatum(manager.GetActiveSize()));
-      }
+      manager.ReadCompressedChecked();
     }
-
-  private:
-
-    XCDFBlockData& blockData_;
 };
 
 class ClearFieldVisitor {
@@ -219,8 +177,36 @@ class ShrinkFieldVisitor {
 
 class ResetFieldVisitor {
   public:
+
     template <typename T>
     void operator()(XCDFDataManager<T>& manager) {manager.Reset();}
+};
+
+class ClearBlockVisitor {
+  public:
+
+    template <typename T>
+    void operator()(XCDFDataManager<T>& manager) {manager.ClearBlockData();}
+};
+
+class FrameWriteFieldVisitor {
+  public:
+
+    FrameWriteFieldVisitor(XCDFFrame& frame,
+                           XCDFFile& file) : frame_(frame), file_(file) { }
+
+    template <typename T>
+    void operator()(XCDFDataManager<T>& manager) {
+
+      manager.PackFrame(frame_);
+      file_.WriteFrame();
+      manager.Reset();
+    }
+
+  private:
+
+    XCDFFrame& frame_;
+    XCDFFile& file_;
 };
 
 class CheckFieldContentsVisitor {

@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
 
   std::cout << "Creating file 1" << std::endl;
 
-  XCDFFile f1("appendtest.xcd", "a");
+  XCDFFile f1("appendtest.xcd", "w");
   XCDFUnsignedIntegerField field1 =
       f1.AllocateUnsignedIntegerField("field1", 1);
   field1 << 121212;

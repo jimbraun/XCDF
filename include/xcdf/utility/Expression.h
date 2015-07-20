@@ -41,7 +41,7 @@ class Expression {
   public:
 
     Expression(const std::string& exp,
-               const XCDFFile& f) : f_(f) {
+               XCDFFile& f) : f_(f) {
 
       expString_ = exp;
 
@@ -72,7 +72,7 @@ class Expression {
     Symbol* GetHeadSymbol() {return *(parsedSymbols_.begin());}
 
     const std::string& GetExpressionString() const {return expString_;}
-    const XCDFFile& GetFile() const {return f_;}
+    XCDFFile& GetFile() const {return f_;}
 
   private:
 
@@ -80,7 +80,7 @@ class Expression {
     Expression(const Expression& exp) : f_(exp.f_) { }
     void operator=(const Expression& exp) { }
 
-    const XCDFFile& f_;
+    XCDFFile& f_;
     std::string expString_;
 
     std::vector<Symbol*> allocatedSymbols_;

@@ -43,7 +43,7 @@ class EventSelectExpression {
   public:
 
     EventSelectExpression(const std::string& exp,
-                          const XCDFFile& f) :
+                          XCDFFile& f) :
                 expression_(xcdf_shared(new Expression(exp, f))) {
 
       Symbol* start = expression_->GetHeadSymbol();

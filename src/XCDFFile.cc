@@ -53,6 +53,9 @@ void XCDFFile::Init() {
   currentFrameEndOffset_ = 0;
 
   currentFileName_ = "";
+
+  globalBlock_ = xcdf_shared(new XCDFBlockData());
+  allFieldsRead_ = true;
 }
 
 /*
@@ -118,6 +121,10 @@ void XCDFFile::Close() {
   unsignedIntegerFieldList_.clear();
   signedIntegerFieldList_.clear();
   floatingPointFieldList_.clear();
+
+  unsignedIntegerReadFieldList_.clear();
+  signedIntegerReadFieldList_.clear();
+  floatingPointReadFieldList_.clear();
 
   unsignedIntegerFieldMap_.clear();
   signedIntegerFieldMap_.clear();
@@ -196,7 +203,10 @@ bool XCDFFile::Open(const char* fileName,
         isModifiable_ = false;
         isOpen_ = true;
         isAppend_ = true;
+        // Read the headers
         ReadFileHeaders();
+        // By default, we need to read all of the fields
+        MarkAllFieldsForRead();
       } else {
         XCDFError("Unable to open " << fileName << " for appending");
       }
@@ -231,6 +241,11 @@ bool XCDFFile::OpenAppend(const char* fileName) {
   // Save the position directly after header in case of zero-entry file
   uint64_t firstPos =
       static_cast<uint64_t>(streamHandler_.GetInputStream().tellg());
+
+  // Don't append to old version files
+  if (fileHeader_.GetVersion() < 3) {
+    return false;
+  }
 
   // Get the block table
   if (!blockTableComplete_) {
@@ -389,24 +404,17 @@ int XCDFFile::Write() {
     XCDFFatal("XCDF Write Failed: File not opened for writing");
   }
 
-  // Check that fields are filled and have the correct number of entries
-  CheckFieldVisitor checkFieldVisitor;
-  ApplyFieldManagerVisitor(checkFieldVisitor);
-
-  // Copy the data and clear the fields
-  UncompressedBufferWriteFieldVisitor uWriteVisitor(uncompressedBlock_);
-  ApplyFieldManagerVisitor(uWriteVisitor);
-
-  ClearFieldVisitor clear;
-  ApplyFieldManagerVisitor(clear);
+  // Check that fields are filled and have the correct number of entries,
+  // write the uncompressed data, and clear the field
+  StoreUncompressedFieldVisitor storeUncompressedFieldVisitor;
+  ApplyFieldManagerVisitor(storeUncompressedFieldVisitor);
 
   eventCount_++;
   blockEventCount_++;
 
-  uint64_t currentBlockSize = uncompressedBlock_.GetByteCount();
-
   // Write out the block if we've reached specified block size or
   // buffer has reached the specified threshold size
+  uint64_t currentBlockSize = storeUncompressedFieldVisitor.GetByteCount();
   if (blockEventCount_ >= blockSize_ ||
                  currentBlockSize >= thresholdByteCount_) {
     WriteBlock();
@@ -414,9 +422,6 @@ int XCDFFile::Write() {
     // If last block was larger than 150 MB, deallocate memory buffers.
     // Reallocation will require relatively zero CPU in this case.
     if (currentBlockSize > 150000000) {
-      uncompressedBlock_.Shrink();
-      blockData_.Clear();
-      blockData_.Shrink();
       ShrinkFieldVisitor shrink;
       ApplyFieldManagerVisitor(shrink);
     }
@@ -441,7 +446,6 @@ void XCDFFile::WriteBlock() {
   assert(IsWritable());
 
   blockHeader_.Clear();
-  blockData_.Clear();
   blockHeader_.SetEventCount(blockEventCount_);
 
   // Align the field bins with zero if possible
@@ -451,6 +455,10 @@ void XCDFFile::WriteBlock() {
   // Write the field headers
   BlockHeaderFieldVisitor blockHeaderFieldVisitor(blockHeader_);
   ApplyFieldManagerVisitor(blockHeaderFieldVisitor);
+
+  // Clear the data block(s)
+  ClearBlockVisitor clearBlockVisitor;
+  ApplyFieldManagerVisitor(clearBlockVisitor);
 
   // Write the data block
   for (unsigned i = 0; i < blockEventCount_; ++i) {
@@ -472,12 +480,10 @@ void XCDFFile::WriteBlock() {
 
   blockHeader_.PackFrame(currentFrame_);
   WriteFrame();
-  blockData_.PackFrame(currentFrame_);
-  WriteFrame();
 
-  // Reset each field
-  ResetFieldVisitor reset;
-  ApplyFieldManagerVisitor(reset);
+  // Write and reset each field
+  FrameWriteFieldVisitor frameWrite(currentFrame_, *this);
+  ApplyFieldManagerVisitor(frameWrite);
 
   blockCount_++;
 
@@ -491,32 +497,25 @@ void XCDFFile::WriteBlock() {
  */
 void XCDFFile::WriteEvent() {
 
-  // Read in event from the uncompressed buffer
-  UncompressedBufferReadFieldVisitor uReadFieldVisotor(uncompressedBlock_);
-  ApplyFieldManagerVisitor(uReadFieldVisotor);
-
-  // Compress event and clear field
-  WriteFieldVisitor writeFieldVisitor(blockData_);
-  ApplyFieldManagerVisitor(writeFieldVisitor);
-
-  ClearFieldVisitor clear;
-  ApplyFieldManagerVisitor(clear);
+  // Read in an uncompressed event and compress it
+  StoreCompressedFieldVisitor storeCompressedFieldVisitor;
+  ApplyFieldManagerVisitor(storeCompressedFieldVisitor);
 }
 
 void XCDFFile::ReadEvent() {
 
   assert(blockEventCount_ > 0);
 
-  // Read in event from the compressed buffer
-  ClearFieldVisitor clear;
-  ApplyFieldManagerVisitor(clear);
-
   if (checkedReadForAppendFlag_) {
-    CheckedReadFieldVisitor readFieldVisitor(blockData_);
+    ClearFieldVisitor clear;
+    ApplyFieldManagerVisitor(clear);
+    CheckedReadFieldVisitor readFieldVisitor;
     ApplyFieldManagerVisitor(readFieldVisitor);
   } else {
-    ReadFieldVisitor readFieldVisitor(blockData_);
-    ApplyFieldManagerVisitor(readFieldVisitor);
+    ClearFieldVisitor clear;
+    ApplyReadFieldManagerVisitor(clear);
+    ReadFieldVisitor readFieldVisitor;
+    ApplyReadFieldManagerVisitor(readFieldVisitor);
   }
 
   blockEventCount_--;
@@ -585,22 +584,52 @@ bool XCDFFile::ReadNextBlock() {
     // Get event count for next block
     blockEventCount_ = blockHeader_.GetEventCount();
 
-    ReadFrame();
+    // Read back the data
+    if (fileHeader_.GetVersion() < 3) {
 
-    if (currentFrame_.GetType() != XCDF_BLOCK_DATA) {
-      XCDFFatal("Block header not followed by data block at file offset: " <<
-                                   currentFrameStartOffset_ << ". Aborting.");
+      // All the data is in one big block
+      ReadFrame();
+
+      if (currentFrame_.GetType() != XCDF_BLOCK_DATA) {
+        XCDFFatal("Block header not followed by data block at file " <<
+                     "offset: " << currentFrameStartOffset_ << ". Aborting.");
+      }
+
+      globalBlock_->UnpackFrame(currentFrame_);
+
+    } else {
+
+      // Each field has its own block
+      uint32_t i = 0;
+      for (std::vector<XCDFFieldHeader>::const_iterator
+                        it = blockHeader_.FieldHeadersBegin();
+                        it != blockHeader_.FieldHeadersEnd(); ++it) {
+
+        ReadFrame();
+
+        if (currentFrame_.GetType() != XCDF_BLOCK_DATA) {
+          XCDFFatal("Block header not followed by data block at file " <<
+                    "offset: " << currentFrameStartOffset_ << ". Aborting.");
+        }
+
+        if (i < threshSignedInt) {
+
+          unsignedIntegerFieldList_[i].UnpackFrame(currentFrame_);
+
+        } else if (i >= threshFloat) {
+
+          uint32_t index = i - threshFloat;
+          floatingPointFieldList_[index].UnpackFrame(currentFrame_);
+
+        } else {
+
+          uint32_t index = i - threshSignedInt;
+          signedIntegerFieldList_[index].UnpackFrame(currentFrame_);
+        }
+        i++;
+      }
     }
 
-    // Shrink internal buffers if previous block > 150 MB
-    if (blockData_.Capacity() > 150000000) {
-      blockData_.Clear();
-      blockData_.Shrink();
-      ShrinkFieldVisitor shrink;
-      ApplyFieldManagerVisitor(shrink);
-    }
-
-    blockData_.UnpackFrame(currentFrame_);
     blockCount_++;
     return true;
 
@@ -760,6 +789,12 @@ void XCDFFile::ReadFileHeaders() {
             AllocateField(it->name_, type,
                           it->rawResolution_, it->parentName_);
 
+        if (fileHeader_.GetVersion() < 3) {
+          // We must automatically read from this field
+          // and use the global data block
+          unsignedIntegerReadFieldList_.push_back(manager);
+        }
+
         unsignedIntegerFieldList_.push_back(manager);
         unsignedIntegerBareFieldList_.push_back(manager.GetField());
         unsignedIntegerFieldMap_.insert(std::pair<std::string,
@@ -777,6 +812,10 @@ void XCDFFile::ReadFileHeaders() {
         signedIntegerBareFieldList_.push_back(manager.GetField());
         signedIntegerFieldMap_.insert(std::pair<std::string,
                   XCDFDataManager<int64_t> >(it->name_, manager));
+        if (fileHeader_.GetVersion() < 3) {
+          // We must automatically read from this field
+          signedIntegerReadFieldList_.push_back(manager);
+        }
         break;
       }
 
@@ -790,6 +829,10 @@ void XCDFFile::ReadFileHeaders() {
         floatingPointBareFieldList_.push_back(manager.GetField());
         floatingPointFieldMap_.insert(std::pair<std::string,
                   XCDFDataManager<double> >(it->name_, manager));
+        if (fileHeader_.GetVersion() < 3) {
+          // We must automatically read from this field
+          floatingPointReadFieldList_.push_back(manager);
+        }
         break;
       }
 

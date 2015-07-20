@@ -30,6 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <xcdf/XCDFFieldData.h>
 #include <xcdf/XCDFField.h>
 #include <xcdf/XCDFDefs.h>
+#include <xcdf/XCDFBlockData.h>
+#include <xcdf/XCDFFrame.h>
 
 #include <string>
 #include <cmath>
@@ -50,10 +52,15 @@ class XCDFDataManager {
     XCDFDataManager(XCDFFieldType type,
                     XCDFField<T> field,
                     XCDFField<uint64_t> parent,
-                    bool hasParent) : type_(type),
-                                      field_(field),
-                                      parent_(parent),
-                                      hasParent_(hasParent) { }
+                    bool hasParent,
+                    XCDFPtr<XCDFBlockData> dataPtr) :
+                            type_(type),
+                            field_(field),
+                            parent_(parent),
+                            hasParent_(hasParent),
+                            dataPtr_(dataPtr),
+                            uncompressedBlock_(xcdf_shared(
+                                          new XCDFUncompressedBlock())) { }
 
     XCDFFieldType GetType() const {return type_;}
 
@@ -111,7 +118,12 @@ class XCDFDataManager {
      * Shrink the underlying buffer in the XCDFFieldData vector.
      * This is a reallocation and invalidates iterators.
      */
-    void Shrink() {field_.fieldData_->Shrink();}
+    void Shrink() {
+      field_.fieldData_->Shrink();
+      dataPtr_->Clear();
+      dataPtr_->Shrink();
+      uncompressedBlock_->Shrink();
+    }
 
     /*
      * Reset the data from the XCDFFieldData vector (e.g. a block had
@@ -186,6 +198,91 @@ class XCDFDataManager {
     /// Get the parent field
     const XCDFField<uint64_t> GetParent() const {return parent_;}
 
+    /// Clear the underlying block data
+    void ClearBlockData() {dataPtr_->Clear();}
+
+    /// Pack block data into an XCDF frame
+    void PackFrame(XCDFFrame& frame) const {
+      dataPtr_->PackFrame(frame);
+    }
+
+    /// Load block data from an XCDF frame
+    void UnpackFrame(XCDFFrame& frame) {
+      dataPtr_->UnpackFrame(frame);
+    }
+
+    /*
+     *  Write current data into the uncompressed block
+     */
+    uint64_t StoreUncompressed() {
+      // Check that we have the correct number of entries
+      unsigned expectedSize = 1;
+      if (hasParent_) {
+        expectedSize = parent_.At(0);
+      }
+      if (GetSize() != expectedSize) {
+        XCDFFatal("Field \"" << GetName() << "\": Expected "
+                     << expectedSize << " entries, got " << GetSize());
+      }
+
+      // Store the data
+      for (ConstIterator it = Begin(); it != End(); ++it) {
+        uncompressedBlock_->Add(*it);
+      }
+
+      // Clear out current data
+      Clear();
+      return uncompressedBlock_->GetByteCount();
+    }
+
+    /*
+     *  Read data from the uncompressed block, compress it, and store in
+     *  the compressed block
+     */
+    void StoreCompressed() {
+      // Read the event back
+      if (hasParent_) {
+        unsigned size = GetParent().At(0);
+        for (unsigned i = 0; i < size; ++i) {
+          AddUnchecked(uncompressedBlock_->Get<T>());
+          dataPtr_->AddDatum(GetIntegerRepresentation(i), GetActiveSize());
+        }
+      } else {
+        AddUnchecked(uncompressedBlock_->Get<T>());
+        dataPtr_->AddDatum(GetIntegerRepresentation(0), GetActiveSize());
+      }
+
+      // Clear out current data
+      Clear();
+    }
+
+    /*
+     *  Read data from the compressed block
+     */
+    void ReadCompressed() {
+      if (hasParent_) {
+        unsigned size = GetParent().At(0);
+        for (unsigned i = 0; i < size; ++i) {
+          AddIntegerRepresentation(dataPtr_->GetDatum(GetActiveSize()));
+        }
+      } else {
+        AddIntegerRepresentation(dataPtr_->GetDatum(GetActiveSize()));
+      }
+    }
+
+    /*
+     *  Read data from the compressed block, checking ranges for append
+     */
+    void ReadCompressedChecked() {
+      if (hasParent_) {
+        unsigned size = GetParent().At(0);
+        for (unsigned i = 0; i < size; ++i) {
+          AddIntegerRepresentationAppend(dataPtr_->GetDatum(GetActiveSize()));
+        }
+      } else {
+        AddIntegerRepresentationAppend(dataPtr_->GetDatum(GetActiveSize()));
+      }
+    }
 
   protected:
 
@@ -201,6 +298,10 @@ class XCDFDataManager {
     /// Does this field have a parent?
     bool hasParent_;
 
+    /// Hold the black data and uncompressed data in shared memory to
+    /// allow copying of the XCDFDataManager object
+    XCDFPtr<XCDFBlockData> dataPtr_;
+    XCDFPtr<XCDFUncompressedBlock> uncompressedBlock_;
 
     /*
      *  Convert #resolution units between active min and current datum back to

@@ -45,6 +45,8 @@ int main(int argc, char** argv) {
 
   for (int k = 0; k < 25000; ++k) {
 
+    printf("Iteration %d\n", k);
+
     XCDFFile f;
     if (k == 0) {
       f.Open("randomtest.xcd", "w");
