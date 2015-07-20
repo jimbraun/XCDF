@@ -503,7 +503,8 @@ class XCDFFile {
       }
 
       XCDFDataManager<double> manager =
-             AllocateField(name, XCDF_FLOATING_POINT, resolution, parentName);
+             AllocateField(name, XCDF_FLOATING_POINT,
+                              resolution, parentName, true);
       floatingPointFieldList_.push_back(manager);
       floatingPointBareFieldList_.push_back(manager.GetField());
       floatingPointFieldMap_.insert(std::pair<std::string,
@@ -545,7 +546,8 @@ class XCDFFile {
       CheckModifiable();
 
       XCDFDataManager<uint64_t> manager =
-           AllocateField(name, XCDF_UNSIGNED_INTEGER, resolution, parentName);
+           AllocateField(name, XCDF_UNSIGNED_INTEGER,
+                            resolution, parentName, true);
       unsignedIntegerFieldList_.push_back(manager);
       unsignedIntegerBareFieldList_.push_back(manager.GetField());
       unsignedIntegerFieldMap_.insert(std::pair<std::string,
@@ -587,7 +589,8 @@ class XCDFFile {
       CheckModifiable();
 
       XCDFDataManager<int64_t> manager  =
-             AllocateField(name, XCDF_SIGNED_INTEGER, resolution, parentName);
+             AllocateField(name, XCDF_SIGNED_INTEGER,
+                             resolution, parentName, true);
       signedIntegerFieldList_.push_back(manager);
       signedIntegerBareFieldList_.push_back(manager.GetField());
       signedIntegerFieldMap_.insert(std::pair<std::string,
@@ -771,7 +774,8 @@ class XCDFFile {
     XCDFDataManager<T> AllocateField(const std::string& name,
                                      const XCDFFieldType type,
                                      const T resolution,
-                                     const std::string& parentName = "") {
+                                     const std::string& parentName = "",
+                                     bool writeHeader = false) {
 
       // Check if we already have a field with the given name
       if (HasField(name)) {
@@ -809,7 +813,7 @@ class XCDFFile {
       }
 
       // If writing, put the descriptor into the header
-      if (IsWritable()) {
+      if (writeHeader) {
         XCDFFieldDescriptor descriptor;
         descriptor.name_ = name;
         descriptor.type_ = type;
