@@ -153,7 +153,7 @@ class Symbol {
     SymbolType type_;
 };
 
-std::ostream& operator<<(std::ostream& os, const Symbol& s) {
+inline std::ostream& operator<<(std::ostream& os, const Symbol& s) {
 
   switch (s.GetType()) {
     case VOID:                os << "VOID"; break;

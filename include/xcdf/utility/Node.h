@@ -39,13 +39,13 @@ class Node : public Symbol {
     virtual unsigned GetSize() const = 0;
 };
 
-template <>
+template <> inline
 Node<int64_t>::Node() {type_ = SIGNED_NODE;}
 
-template <>
+template <> inline
 Node<uint64_t>::Node() {type_ = UNSIGNED_NODE;}
 
-template <>
+template <> inline
 Node<double>::Node() {type_ = FLOATING_POINT_NODE;}
 
 #endif // XCDF_UTILITY_NODE_H_INCLUDED
