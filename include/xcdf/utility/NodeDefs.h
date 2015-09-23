@@ -527,6 +527,26 @@ class UniqueNode : public Node<uint64_t> {
 };
 
 template <typename T>
+class SumNode : public Node<T> {
+
+  public:
+
+    SumNode(Node<T>& node) : node_(node) { }
+    T operator[](unsigned idx) const {
+
+      T sum = 0;
+      for (unsigned i = 0; i < node_.GetSize(); ++i) {
+        sum += node_[i];
+      }
+      return sum;
+    }
+    unsigned GetSize() const {return 1;}
+
+  private:
+    Node<T>& node_;
+};
+
+template <typename T>
 class SinNode : public Node<double> {
 
   public:

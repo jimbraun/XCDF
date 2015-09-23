@@ -55,6 +55,7 @@ enum SymbolType {
     UNSIGNED_NODE,
     FLOATING_POINT_NODE,
     UNIQUE,
+    SUM,
     SIN,
     COS,
     TAN,
@@ -104,6 +105,7 @@ class Symbol {
 
     bool IsUnaryFunction() const {
       return (type_ == UNIQUE ||
+              type_ == SUM    ||
               type_ == SIN    ||
               type_ == COS    ||
               type_ == TAN    ||
@@ -182,6 +184,7 @@ inline std::ostream& operator<<(std::ostream& os, const Symbol& s) {
     case UNSIGNED_NODE:       os << "UNSIGNED_NODE"; break;
     case FLOATING_POINT_NODE: os << "FLOATING_POINT_NODE"; break;
     case UNIQUE:              os << "unique"; break;
+    case SUM:                 os << "sum"; break;
     case SIN:                 os << "sin"; break;
     case COS:                 os << "cos"; break;
     case TAN:                 os << "tan"; break;

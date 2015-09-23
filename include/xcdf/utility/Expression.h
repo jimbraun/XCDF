@@ -286,6 +286,10 @@ class Expression {
         return new Symbol(UNIQUE);
       }
 
+      if (!exp.compare("sum")) {
+        return new Symbol(SUM);
+      }
+
       if (!exp.compare("sin")) {
         return new Symbol(SIN);
       }
@@ -855,6 +859,8 @@ class Expression {
           return new BitwiseNOTNode<T>(*n1);
         case UNIQUE:
           return new UniqueNode<T>(*n1);
+        case SUM:
+          return new SumNode<T>(*n1);
         case SIN:
           return new SinNode<T>(*n1);
         case COS:

@@ -260,7 +260,23 @@ class Filler1D {
       NumericalExpression<double> wne(wExpr_, f);
 
       while (f.Read()) {
-        h.Fill(xne.Evaluate(), wne.Evaluate());
+        if (xne.GetSize() == 1 && wne.GetSize() == 1) {
+          h.Fill(xne.Evaluate(), wne.Evaluate());
+        } else if (xne.GetSize() == wne.GetSize()) {
+          for (int i = 0; i < xne.GetSize(); ++i) {
+            h.Fill(xne.Evaluate(i), wne.Evaluate(i));
+          }
+        } else if (wne.GetSize() == 1) {
+          for (int i = 0; i < xne.GetSize(); ++i) {
+            h.Fill(xne.Evaluate(i), wne.Evaluate());
+          }
+        } else if (xne.GetSize() == 1) {
+          for (int i = 0; i < wne.GetSize(); ++i) {
+            h.Fill(xne.Evaluate(), wne.Evaluate(i));
+          }
+        } else {
+          XCDFFatal("Histogram vector fields cannot differ in size");
+        }
       }
     }
 
@@ -287,7 +303,29 @@ class Filler2D {
       NumericalExpression<double> wne(wExpr_, f);
 
       while (f.Read()) {
-        h.Fill(xne.Evaluate(), yne.Evaluate(), wne.Evaluate());
+        if (xne.GetSize() == 1 && yne.GetSize() == 1 && wne.GetSize() == 1) {
+          h.Fill(xne.Evaluate(), yne.Evaluate(), wne.Evaluate());
+        } else if (xne.GetSize() == yne.GetSize() == wne.GetSize()) {
+          for (int i = 0; i < xne.GetSize(); ++i) {
+            h.Fill(xne.Evaluate(i), yne.Evaluate(i), wne.Evaluate(i));
+          }
+        } else if (wne.GetSize() == 1) {
+          if (yne.GetSize() == 1) {
+            for (int i = 0; i < xne.GetSize(); ++i) {
+              h.Fill(xne.Evaluate(i), yne.Evaluate(), wne.Evaluate());
+            }
+          } else if (xne.GetSize() == 1) {
+            for (int i = 0; i < yne.GetSize(); ++i) {
+              h.Fill(xne.Evaluate(), yne.Evaluate(i), wne.Evaluate());
+            }
+          } else if (xne.GetSize() == yne.GetSize()) {
+            for (int i = 0; i < xne.GetSize(); ++i) {
+              h.Fill(xne.Evaluate(i), yne.Evaluate(i), wne.Evaluate());
+            }
+          }
+        } else {
+          XCDFFatal("Histogram vector fields cannot differ in size");
+        }
       }
     }
 
