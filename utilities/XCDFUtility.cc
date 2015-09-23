@@ -656,6 +656,10 @@ void CreateHistogram(std::vector<std::string>& infiles,
     max = rc.GetMax();
   }
 
+  if (min >= max) {
+    max += 1;
+  }
+
   Histogram1D h(nbins, min, max);
   Filler1D fill(expr, weightExpr);
   FillHistogram(infiles, h, fill);

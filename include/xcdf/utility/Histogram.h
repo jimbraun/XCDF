@@ -401,7 +401,13 @@ class RangeChecker {
 
       while (f.Read()) {
         for (unsigned i = 0; i < exprs_.size(); ++i) {
-          rts_[i].Fill(nes[i].Evaluate());
+          if (nes[i].GetSize() == 1) {
+            rts_[i].Fill(nes[i].Evaluate());
+          } else {
+            for (int i = 0; i < nes[i].GetSize(); ++i) {
+              rts_[i].Fill(nes[i].Evaluate(i));
+            }
+          }
         }
       }
     }
