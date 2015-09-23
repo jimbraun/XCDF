@@ -96,7 +96,7 @@ ADD_CUSTOM_TARGET(uninstall
 # Package control
 # ------------------------------------------------------------------------------
 SET (CPACK_PACKAGE_NAME "xcdf")
-SET (CPACK_PACKAGE_VENDOR "J. Braun <jbraun@umdgrb.umd.edu>")
+SET (CPACK_PACKAGE_VENDOR "J. Braun <jbraun@wipac.wisc.edu>")
 SET (CPACK_PACKAGE_VERSION_MAJOR "${XCDF_MAJOR_VERSION}")
 PAD_STRING (CPACK_PACKAGE_VERSION_MINOR 2 0 "${XCDF_MINOR_VERSION}")
 PAD_STRING (CPACK_PACKAGE_VERSION_PATCH 2 0 "${XCDF_PATCH_VERSION}")
