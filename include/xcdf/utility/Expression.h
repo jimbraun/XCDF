@@ -168,7 +168,8 @@ class Expression {
         // Next loop: skip to before last +/-
         endpos = exp.find_last_of("+-", endpos);
         if (endpos != std::string::npos) {
-          endpos = exp.find_last_not_of("+-", endpos);
+          // We're at the +/-.  Jump to last valid character in front of it
+          endpos = exp.find_last_not_of("+- \n\r\t", endpos);
         }
       }
 
