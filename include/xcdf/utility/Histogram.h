@@ -305,7 +305,7 @@ class Filler2D {
       while (f.Read()) {
         if (xne.GetSize() == 1 && yne.GetSize() == 1 && wne.GetSize() == 1) {
           h.Fill(xne.Evaluate(), yne.Evaluate(), wne.Evaluate());
-        } else if ((xne.GetSize() == yne.GetSize())&(yne.GetSize() == wne.GetSize())) {
+        } else if ((xne.GetSize() == yne.GetSize())&&(yne.GetSize() == wne.GetSize())) {
           for (unsigned i = 0; i < xne.GetSize(); ++i) {
             h.Fill(xne.Evaluate(i), yne.Evaluate(i), wne.Evaluate(i));
           }
