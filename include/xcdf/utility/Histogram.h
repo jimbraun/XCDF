@@ -263,15 +263,15 @@ class Filler1D {
         if (xne.GetSize() == 1 && wne.GetSize() == 1) {
           h.Fill(xne.Evaluate(), wne.Evaluate());
         } else if (xne.GetSize() == wne.GetSize()) {
-          for (int i = 0; i < xne.GetSize(); ++i) {
+          for (unsigned i = 0; i < xne.GetSize(); ++i) {
             h.Fill(xne.Evaluate(i), wne.Evaluate(i));
           }
         } else if (wne.GetSize() == 1) {
-          for (int i = 0; i < xne.GetSize(); ++i) {
+          for (unsigned i = 0; i < xne.GetSize(); ++i) {
             h.Fill(xne.Evaluate(i), wne.Evaluate());
           }
         } else if (xne.GetSize() == 1) {
-          for (int i = 0; i < wne.GetSize(); ++i) {
+          for (unsigned i = 0; i < wne.GetSize(); ++i) {
             h.Fill(xne.Evaluate(), wne.Evaluate(i));
           }
         } else {
@@ -305,21 +305,21 @@ class Filler2D {
       while (f.Read()) {
         if (xne.GetSize() == 1 && yne.GetSize() == 1 && wne.GetSize() == 1) {
           h.Fill(xne.Evaluate(), yne.Evaluate(), wne.Evaluate());
-        } else if (xne.GetSize() == yne.GetSize() == wne.GetSize()) {
-          for (int i = 0; i < xne.GetSize(); ++i) {
+        } else if ((xne.GetSize() == yne.GetSize())&(yne.GetSize() == wne.GetSize())) {
+          for (unsigned i = 0; i < xne.GetSize(); ++i) {
             h.Fill(xne.Evaluate(i), yne.Evaluate(i), wne.Evaluate(i));
           }
         } else if (wne.GetSize() == 1) {
           if (yne.GetSize() == 1) {
-            for (int i = 0; i < xne.GetSize(); ++i) {
+            for (unsigned i = 0; i < xne.GetSize(); ++i) {
               h.Fill(xne.Evaluate(i), yne.Evaluate(), wne.Evaluate());
             }
           } else if (xne.GetSize() == 1) {
-            for (int i = 0; i < yne.GetSize(); ++i) {
+            for (unsigned i = 0; i < yne.GetSize(); ++i) {
               h.Fill(xne.Evaluate(), yne.Evaluate(i), wne.Evaluate());
             }
           } else if (xne.GetSize() == yne.GetSize()) {
-            for (int i = 0; i < xne.GetSize(); ++i) {
+            for (unsigned i = 0; i < xne.GetSize(); ++i) {
               h.Fill(xne.Evaluate(i), yne.Evaluate(i), wne.Evaluate());
             }
           }
@@ -404,7 +404,7 @@ class RangeChecker {
           if (nes[i].GetSize() == 1) {
             rts_[i].Fill(nes[i].Evaluate());
           } else {
-            for (int i = 0; i < nes[i].GetSize(); ++i) {
+            for (unsigned i = 0; i < nes[i].GetSize(); ++i) {
               rts_[i].Fill(nes[i].Evaluate(i));
             }
           }
