@@ -45,7 +45,7 @@ II. Description
   This scheme has two major drawbacks, however:
 
   1. Changes to the data format require significant updates to data readers, as
-     well as a data verisoning scheme. Examples:
+     well as a data versioning scheme. Examples:
     a) Suppose one later improves the experiment and needs to write data in
        0.05 degree bins. This requires adding one bit to both the azimuth and
        zenith fields.
