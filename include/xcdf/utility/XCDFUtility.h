@@ -438,8 +438,16 @@ class CSVInputHandler {
 
     CSVInputHandler(XCDFFile& f,
                     std::istream& in) : f_(f),
-                                        in_(in) {
+                                        in_(in),
+                                        delim_(',') {
+      ProcessFieldDefs();
+    }
 
+    CSVInputHandler(XCDFFile& f,
+                    std::istream& in,
+                    char& delim) : f_(f),
+                                in_(in),
+                                delim_(delim) {
       ProcessFieldDefs();
     }
 
@@ -523,6 +531,7 @@ class CSVInputHandler {
 
     XCDFFile& f_;
     std::istream& in_;
+    char delim_;
 
     void ProcessFieldDefs() {
 
@@ -541,14 +550,14 @@ class CSVInputHandler {
       std::stringstream sstream(currentLine_);
       std::string currentString;
 
-      while (std::getline(sstream, currentString, ',')) {
+      while (std::getline(sstream, currentString, delim_)) {
 
         currentParsedLine_.push_back(currentString);
       }
 
       // Check for an empty delimiter
       if (currentLine_.size() > 0) {
-        if (currentLine_[currentLine_.size() - 1] == ',') {
+        if (currentLine_[currentLine_.size() - 1] == delim_) {
           currentParsedLine_.push_back("");
         }
       }
