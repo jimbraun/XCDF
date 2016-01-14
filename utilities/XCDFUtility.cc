@@ -748,8 +748,10 @@ void CreateHistogram2D(std::vector<std::string>& infiles,
 void Paste(std::vector<std::string>& infiles,
            std::ostream& out,
            std::string& copyFile,
-           std::string& concatArgs) {
+           std::string& concatArgs,
+           std::string& delimeter) {
 
+  char& del = delimeter[0];
   XCDFFile outFile(out);
   outFile.AddComment(concatArgs);
 
@@ -784,7 +786,7 @@ void Paste(std::vector<std::string>& infiles,
   }
 
   // Allocate the new fields
-  CSVInputHandler csvIn(outFile, *currentInputStream);
+  CSVInputHandler csvIn(outFile, *currentInputStream, del);
 
   while(csvIn.CopyLine()) {
     if (f.IsOpen()) {
@@ -862,12 +864,13 @@ void PrintUsage() {
     "                    \"currentEventNumber\" refers to the current\n" <<
     "                    event in the file.\n\n" <<
 
-    "    paste {-c existingfile} {-o outfile} {infile}:\n\n" <<
+    "    paste {-d delimeter} {-c existingfile} {-o outfile} {infile}:\n\n" <<
 
     "                    Copy events in CSV format from infile (or stdin,\n" <<
     "                    if unspecified) into outfile (or stdout if unspecified).\n" <<
     "                    If an existing XCDF file is specified with -c, the\n" <<
-    "                    fields are added to the existing file.\n\n" <<
+    "                    fields are added to the existing file. A delimeters can be \n" << 
+    "                    specified but will default to commas if unspecified. \n\n" <<
 
     "    recover {-o outfile} {infiles} Recover a corrupt XCDF file.\n\n" <<
 
@@ -925,6 +928,7 @@ int main(int argc, char** argv) {
   std::ofstream fout;
   std::vector<std::string> infiles;
   std::string copyFile = "";
+  std::string delimeter = ",";
   int currentArg = 2;
 
   if (!verb.compare("recover")) {
@@ -983,6 +987,20 @@ int main(int argc, char** argv) {
   }
 
   if (!verb.compare("paste")) {
+    if (currentArg < argc) {
+
+      std::string out(argv[currentArg]);
+      if (!out.compare("-d")) {
+        
+        if(++currentArg == argc) {
+          PrintUsage();
+          exit(1);
+        }
+
+      delimeter = std::string(argv[currentArg++]);
+      outstream = &fout;
+      }
+    }
 
     if (currentArg < argc) {
 
@@ -1068,7 +1086,7 @@ int main(int argc, char** argv) {
       PrintUsage();
       exit(0);
     }
-    Paste(infiles, *outstream, copyFile, concatArgs);
+    Paste(infiles, *outstream, copyFile, concatArgs, delimeter);
   }
 
   else if (!verb.compare("version")) {
