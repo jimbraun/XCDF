@@ -425,7 +425,6 @@ void Recover(std::vector<std::string>& infiles,
     SelectFieldVisitor selectFieldVisitor(f, fields, buf);
     f.ApplyFieldVisitor(selectFieldVisitor);
 
-    CopyComments(outFile, f);
     while (f.Read()) {
 
       // Copy the data if true
