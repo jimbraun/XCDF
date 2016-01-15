@@ -47,6 +47,7 @@ void XCDFFile::Init() {
   isOpen_ = false;
   isAppend_ = false;
   checkedReadForAppendFlag_ = false;
+  recover_ = false;
 
   currentFileStartOffset_ = 0;
   currentFrameStartOffset_ = 0;
@@ -146,6 +147,8 @@ bool XCDFFile::Open(const char* fileName,
                     const char* mode) {
 
   bool isRead = strchr(mode, 'r') || strchr(mode, 'R');
+  recover_ = strchr(mode, 'c') || strchr(mode, 'C');
+  isRead = isRead || recover_;
   bool isWrite = strchr(mode, 'w') || strchr(mode, 'W');
   bool isAppend = strchr(mode, 'a') || strchr(mode, 'A');
 
@@ -165,6 +168,7 @@ bool XCDFFile::Open(const char* fileName,
   }
 
   isOpen_ = false;
+
 
   if (isRead) {
     streamHandler_.OpenInputStream(fileName);
@@ -739,7 +743,7 @@ void XCDFFile::ReadFileHeaders() {
   std::streampos firstHeaderEndPos = currentFrameEndOffset_;
 
   // Read the trailer if we have a pointer
-  if (fileHeader_.HasFileTrailerPtr()) {
+  if (fileHeader_.HasFileTrailerPtr() && !recover_) {
     if (DoSeek(fileHeader_.GetFileTrailerPtr())) {
       LoadFileTrailer(fileTrailer_);
       blockTableComplete_ = true;

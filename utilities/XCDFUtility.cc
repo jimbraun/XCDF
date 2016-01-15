@@ -404,7 +404,10 @@ void Recover(std::vector<std::string>& infiles,
   if (infiles.size() == 0) {
     f.Open(std::cin);
   } else if (infiles.size() == 1) {
-    f.Open(infiles[0], "r");
+    // Open the file in recovery mode.  This avoids seeking to the
+    // block table when reading a normal XCDF file, which immediately
+    // ends the recovery.
+    f.Open(infiles[0], "c");
   } else {
     std::cerr << "Only one input file is allowed for recover. Quitting"
                                                             << std::endl;

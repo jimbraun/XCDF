@@ -688,6 +688,7 @@ class XCDFFile {
     bool isOpen_;
     bool isAppend_;
     bool checkedReadForAppendFlag_;
+    bool recover_;
     std::string currentFileName_;
 
     // Memory buffer to store data block as it is written.  Determine
