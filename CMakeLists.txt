@@ -26,7 +26,7 @@ ENDIF ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
 # ------------------------------------------------------------------------------
 SET (XCDF_MAJOR_VERSION 2 CACHE STRING "Major version number")
 SET (XCDF_MINOR_VERSION 9 CACHE STRING "Minor version number")
-SET (XCDF_PATCH_VERSION 0 CACHE STRING "Patch number")
+SET (XCDF_PATCH_VERSION 1 CACHE STRING "Patch number")
 
 # ------------------------------------------------------------------------------
 # Set up build paths 
