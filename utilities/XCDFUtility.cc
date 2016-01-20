@@ -497,8 +497,6 @@ void AddComment(std::vector<std::string>& infiles,
   }
 
   XCDFFile outFile(out);
-  CopyComments(outFile, f);
-  outFile.AddComment(comment);
 
   // Get the names of all the fields
   std::set<std::string> fields;
@@ -516,6 +514,9 @@ void AddComment(std::vector<std::string>& infiles,
     buf.CopyData();
     outFile.Write();
   }
+
+  CopyComments(outFile, f);
+  outFile.AddComment(comment);
   outFile.Close();
 }
 
