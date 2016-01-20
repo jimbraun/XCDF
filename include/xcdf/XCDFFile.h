@@ -440,8 +440,11 @@ class XCDFFile {
     }
 
     /// Get an iterator to the beginning of the comment list
-    std::vector<std::string>::const_iterator CommentsBegin() {
-      if (!isModifiable_ && !blockTableComplete_) {
+    /// Optional: Force load the comments at the end of a streaming
+    /// file if we don't already have them
+    std::vector<std::string>::const_iterator
+    CommentsBegin(bool forceLoad=false) {
+      if (!isModifiable_ && !blockTableComplete_ && forceLoad) {
         // Get the event count, causing all trailers to be read
         GetEventCount();
       }
@@ -449,8 +452,11 @@ class XCDFFile {
     }
 
     /// Get an iterator to the end of the comment list
-    std::vector<std::string>::const_iterator CommentsEnd() {
-      if (!isModifiable_ && !blockTableComplete_) {
+    /// Optional: Force load the comments at the end of a streaming
+    /// file if we don't already have them
+    std::vector<std::string>::const_iterator
+    CommentsEnd(bool forceLoad=false) {
+      if (!isModifiable_ && !blockTableComplete_ && forceLoad) {
         // Get the event count, causing all trailers to be read
         GetEventCount();
       }
@@ -458,8 +464,10 @@ class XCDFFile {
     }
 
     /// Get the number of comments
-    unsigned GetNComments() {
-      if (!isModifiable_ && !blockTableComplete_) {
+    /// Optional: Force load the comments at the end of a streaming
+    /// file if we don't already have them
+    unsigned GetNComments(bool forceLoad=false) {
+      if (!isModifiable_ && !blockTableComplete_ && forceLoad) {
         // Get the event count, causing all trailers to be read
         GetEventCount();
       }

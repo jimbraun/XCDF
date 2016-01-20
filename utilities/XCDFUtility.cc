@@ -86,8 +86,9 @@ void Info(std::vector<std::string>& infiles) {
   std::cout << std::endl << "Comments:" <<
                std::endl << "---------" << std::endl;
 
-  for (std::vector<std::string>::const_iterator it = f.CommentsBegin();
-                                                it != f.CommentsEnd(); ++it) {
+  for (std::vector<std::string>::const_iterator
+                                   it = f.CommentsBegin(true);
+                                   it != f.CommentsEnd(true); ++it) {
     std::cout << *it << std::endl;
   }
 }
@@ -125,8 +126,8 @@ void Dump(std::vector<std::string>& infiles) {
                  std::endl << "---------" << std::endl;
 
     for (std::vector<std::string>::const_iterator
-                                  it = f.CommentsBegin();
-                                  it != f.CommentsEnd(); ++it) {
+                                  it = f.CommentsBegin(true);
+                                  it != f.CommentsEnd(true); ++it) {
       std::cout << *it << std::endl;
     }
 
@@ -244,8 +245,8 @@ void CopyComments(XCDFFile& destination,
                   XCDFFile& source) {
 
   for (std::vector<std::string>::const_iterator
-                             it = source.CommentsBegin();
-                             it != source.CommentsEnd(); ++it) {
+                             it = source.CommentsBegin(true);
+                             it != source.CommentsEnd(true); ++it) {
 
     destination.AddComment(*it);
   }
@@ -538,8 +539,8 @@ void Comments(std::vector<std::string>& infiles,
     }
 
     for (std::vector<std::string>::const_iterator
-                                   it = f.CommentsBegin();
-                                   it != f.CommentsEnd(); ++it) {
+                                   it = f.CommentsBegin(true);
+                                   it != f.CommentsEnd(true); ++it) {
 
       out << *it << std::endl;
     }
