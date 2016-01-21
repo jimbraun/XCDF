@@ -47,6 +47,7 @@ void XCDFFile::Init() {
   isOpen_ = false;
   isAppend_ = false;
   checkedReadForAppendFlag_ = false;
+  recover_ = false;
 
   currentFileStartOffset_ = 0;
   currentFrameStartOffset_ = 0;
@@ -103,7 +104,7 @@ void XCDFFile::Close() {
           fileHeader_.PackFrame(currentFrame_);
           WriteFrame();
         }
-      } catch (std::ostream::failure e) { }
+      } catch (std::ostream::failure& e) { }
     }
 
     ostream.flush();
@@ -146,6 +147,8 @@ bool XCDFFile::Open(const char* fileName,
                     const char* mode) {
 
   bool isRead = strchr(mode, 'r') || strchr(mode, 'R');
+  recover_ = strchr(mode, 'c') || strchr(mode, 'C');
+  isRead = isRead || recover_;
   bool isWrite = strchr(mode, 'w') || strchr(mode, 'W');
   bool isAppend = strchr(mode, 'a') || strchr(mode, 'A');
 
@@ -165,6 +168,7 @@ bool XCDFFile::Open(const char* fileName,
   }
 
   isOpen_ = false;
+
 
   if (isRead) {
     streamHandler_.OpenInputStream(fileName);
@@ -291,7 +295,7 @@ bool XCDFFile::PrepareAppend(const char* fileName,
   // Seek to appropriate spot in file
   try {
     streamHandler_.GetOutputStream().seekp(position);
-  } catch (std::ostream::failure e) {
+  } catch (std::ostream::failure& e) {
     return false;
   }
   if (static_cast<uint64_t>(streamHandler_.GetOutputStream().tellp()) !=
@@ -336,7 +340,7 @@ void XCDFFile::WriteFrame() {
   currentFrameStartOffset_ = ostream.tellp();
   try {
     currentFrame_.Write(ostream);
-  } catch (std::ostream::failure e) {
+  } catch (std::ostream::failure& e) {
     ostream.setstate(std::ostream::failbit);
   }
 
@@ -364,7 +368,7 @@ void XCDFFile::ReadFrame() {
   currentFrameStartOffset_ = istream.tellg();
   try {
     currentFrame_.Read(istream);
-  } catch (std::istream::failure e) {
+  } catch (std::istream::failure& e) {
     istream.setstate(std::istream::failbit);
   }
 
@@ -665,6 +669,9 @@ bool XCDFFile::GetNextBlockWithEvents() {
       return true;
     }
   }
+
+  // Unreachable, but silences compiler warnings...
+  return false;
 }
 
 /*
@@ -704,7 +711,7 @@ bool XCDFFile::DoSeek(const std::streampos& pos) {
   std::istream::iostate oldState = istream.rdstate();
   try {
     istream.seekg(pos);
-  } catch (std::istream::failure e) {
+  } catch (std::istream::failure& e) {
     istream.setstate(std::istream::failbit);
   }
 
@@ -736,7 +743,7 @@ void XCDFFile::ReadFileHeaders() {
   std::streampos firstHeaderEndPos = currentFrameEndOffset_;
 
   // Read the trailer if we have a pointer
-  if (fileHeader_.HasFileTrailerPtr()) {
+  if (fileHeader_.HasFileTrailerPtr() && !recover_) {
     if (DoSeek(fileHeader_.GetFileTrailerPtr())) {
       LoadFileTrailer(fileTrailer_);
       blockTableComplete_ = true;
@@ -917,7 +924,7 @@ bool XCDFFile::NextFrameExists() {
   int test = 0;
   try {
     test = istream.peek();
-  } catch (std::istream::failure e) {
+  } catch (std::istream::failure& e) {
     istream.setstate(std::istream::failbit);
   }
 

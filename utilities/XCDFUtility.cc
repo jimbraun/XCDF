@@ -86,8 +86,9 @@ void Info(std::vector<std::string>& infiles) {
   std::cout << std::endl << "Comments:" <<
                std::endl << "---------" << std::endl;
 
-  for (std::vector<std::string>::const_iterator it = f.CommentsBegin();
-                                                it != f.CommentsEnd(); ++it) {
+  for (std::vector<std::string>::const_iterator
+                                   it = f.CommentsBegin(true);
+                                   it != f.CommentsEnd(true); ++it) {
     std::cout << *it << std::endl;
   }
 }
@@ -125,8 +126,8 @@ void Dump(std::vector<std::string>& infiles) {
                  std::endl << "---------" << std::endl;
 
     for (std::vector<std::string>::const_iterator
-                                  it = f.CommentsBegin();
-                                  it != f.CommentsEnd(); ++it) {
+                                  it = f.CommentsBegin(true);
+                                  it != f.CommentsEnd(true); ++it) {
       std::cout << *it << std::endl;
     }
 
@@ -244,8 +245,8 @@ void CopyComments(XCDFFile& destination,
                   XCDFFile& source) {
 
   for (std::vector<std::string>::const_iterator
-                             it = source.CommentsBegin();
-                             it != source.CommentsEnd(); ++it) {
+                             it = source.CommentsBegin(true);
+                             it != source.CommentsEnd(true); ++it) {
 
     destination.AddComment(*it);
   }
@@ -404,7 +405,10 @@ void Recover(std::vector<std::string>& infiles,
   if (infiles.size() == 0) {
     f.Open(std::cin);
   } else if (infiles.size() == 1) {
-    f.Open(infiles[0], "r");
+    // Open the file in recovery mode.  This avoids seeking to the
+    // block table when reading a normal XCDF file, which immediately
+    // ends the recovery.
+    f.Open(infiles[0], "c");
   } else {
     std::cerr << "Only one input file is allowed for recover. Quitting"
                                                             << std::endl;
@@ -425,7 +429,6 @@ void Recover(std::vector<std::string>& infiles,
     SelectFieldVisitor selectFieldVisitor(f, fields, buf);
     f.ApplyFieldVisitor(selectFieldVisitor);
 
-    CopyComments(outFile, f);
     while (f.Read()) {
 
       // Copy the data if true
@@ -495,8 +498,6 @@ void AddComment(std::vector<std::string>& infiles,
   }
 
   XCDFFile outFile(out);
-  CopyComments(outFile, f);
-  outFile.AddComment(comment);
 
   // Get the names of all the fields
   std::set<std::string> fields;
@@ -514,6 +515,9 @@ void AddComment(std::vector<std::string>& infiles,
     buf.CopyData();
     outFile.Write();
   }
+
+  CopyComments(outFile, f);
+  outFile.AddComment(comment);
   outFile.Close();
 }
 
@@ -535,8 +539,8 @@ void Comments(std::vector<std::string>& infiles,
     }
 
     for (std::vector<std::string>::const_iterator
-                                   it = f.CommentsBegin();
-                                   it != f.CommentsEnd(); ++it) {
+                                   it = f.CommentsBegin(true);
+                                   it != f.CommentsEnd(true); ++it) {
 
       out << *it << std::endl;
     }
