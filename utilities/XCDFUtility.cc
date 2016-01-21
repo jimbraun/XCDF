@@ -992,7 +992,7 @@ int main(int argc, char** argv) {
 
       std::string out(argv[currentArg]);
       if (!out.compare("-d")) {
-        
+
         if(++currentArg == argc) {
           PrintUsage();
           exit(1);
@@ -1033,6 +1033,24 @@ int main(int argc, char** argv) {
       }
     }
   }
+
+  if (!verb.compare("remove-comments")) {
+    if (currentArg < argc) {
+
+      std::string out(argv[currentArg]);
+      if (!out.compare("-o")) {
+
+        if (++currentArg == argc) {
+          PrintUsage();
+          exit(1);
+        }
+
+        fout.open(argv[currentArg++]);
+        outstream = &fout;
+      }
+    }
+  }
+ 
 
   while (currentArg < argc) {
     infiles.push_back(std::string(argv[currentArg++]));
