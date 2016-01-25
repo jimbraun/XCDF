@@ -429,8 +429,18 @@ XCDFField_iterator(pyxcdf_XCDFFile* self, PyObject* fieldName)
 
 // Function to provide random access to a record in the file
 static PyObject*
-XCDFFile_getRecord(pyxcdf_XCDFFile* self, PyObject* recordId)
+XCDFFile_getRecord(pyxcdf_XCDFFile* self, PyObject* args)
 {
+
+  // Parse the arguments
+  PyObject* recordId = NULL;
+  PyObject* fields = NULL;
+  if (!PyArg_ParseTuple(args, "O|O", &recordId, &fields)) {
+    PyErr_SetString(PyExc_TypeError, "getRecord(number [field CSV list])");
+    return NULL;
+  }
+
+
   // Make sure the XCDF file is valid
   if (self->file_ == NULL) {
     PyErr_SetString(PyExc_AttributeError, "file: not open");
@@ -444,10 +454,19 @@ XCDFFile_getRecord(pyxcdf_XCDFFile* self, PyObject* recordId)
 
     if (self->file_->Seek(id)) {
 
-      // Create a field visitor to stuff data into a tuple
-      TupleSetter tsetter(self->file_->GetNFields());
-      self->file_->ApplyFieldVisitor(tsetter);
-      result = tsetter.GetTuple();
+      if (fields == NULL) {
+
+        // Copy all fields.  Create a field visitor to stuff data into a tuple
+        TupleSetter tsetter(self->file_->GetNFields());
+        self->file_->ApplyFieldVisitor(tsetter);
+        result = tsetter.GetTuple();
+      } else {
+
+        // Only copy the selected fields
+        FieldsByNameSelector selector =
+            FieldsByNameSelector(PyString_AsString(fields), *(self->file_));
+        result = selector.GetTuple();
+      }
 
       self->file_->Rewind();
     }
@@ -539,7 +558,7 @@ static PyMethodDef XCDFFile_methods[] =
     const_cast<char*>("Print XCDF file field data") },
 
   { const_cast<char*>("getRecord"), (PyCFunction)XCDFFile_getRecord,
-    METH_O,
+    METH_VARARGS,
     const_cast<char*>("Get a record by number from the file") },
 
   { const_cast<char*>("records"), (PyCFunction)XCDFRecord_iterator,
