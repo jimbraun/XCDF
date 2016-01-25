@@ -936,7 +936,8 @@ int main(int argc, char** argv) {
   std::string delimeter = ",";
   int currentArg = 2;
 
-  if (!verb.compare("recover")) {
+  if (!verb.compare("recover") || 
+      !verb.compare("remove-comments")) {
 
     if (currentArg < argc) {
 
@@ -996,7 +997,7 @@ int main(int argc, char** argv) {
 
       std::string out(argv[currentArg]);
       if (!out.compare("-d")) {
-        
+
         if(++currentArg == argc) {
           PrintUsage();
           exit(1);
