@@ -15,6 +15,7 @@
 #include <XCDFFieldsByNameSelector.h>
 
 #include <structmember.h>
+#include <string.h>
 
 #include <iomanip>
 #include <sstream>
@@ -26,6 +27,10 @@ typedef struct {
   PyObject* filename_;    // XCDF filename (a python string)
   XCDFFile* file_;        // an XCDF file instance
 } pyxcdf_XCDFFile;
+
+
+// XCDFException object
+PyObject* pyxcdf_XCDFException;
 
 
 // Python XCDFFile allocator
@@ -75,7 +80,7 @@ XCDFFile_init(pyxcdf_XCDFFile* self, PyObject* args)
       self->file_ = new XCDFFile(PyString_AsString(filename), mode);
     }
     catch (const XCDFException& e) {
-      PyErr_SetString(PyExc_IOError, e.GetMessage().c_str());
+      PyErr_SetString(pyxcdf_XCDFException, e.GetMessage().c_str());
       return -1;
     }
   }
@@ -168,7 +173,7 @@ XCDFRecordIterator_iternext(PyObject* self)
       return NULL;
     }
   } catch (const XCDFException& e) {
-    PyErr_SetString(PyExc_IOError, e.GetMessage().c_str());
+    PyErr_SetString(pyxcdf_XCDFException, e.GetMessage().c_str());
     return NULL;
   }
 }
@@ -282,7 +287,7 @@ XCDFFieldIterator_iternext(PyObject* self)
       return NULL;
     }
   } catch (const XCDFException& e) {
-    PyErr_SetString(PyExc_IOError, e.GetMessage().c_str());
+    PyErr_SetString(pyxcdf_XCDFException, e.GetMessage().c_str());
     return NULL;
   }
 }
@@ -355,7 +360,7 @@ XCDFFile_header(pyxcdf_XCDFFile* self)
     return result;
   }
   catch (const XCDFException& e) {
-    PyErr_SetString(PyExc_IOError, e.GetMessage().c_str());
+    PyErr_SetString(pyxcdf_XCDFException, e.GetMessage().c_str());
     return NULL;
   }
 }
@@ -387,7 +392,7 @@ XCDFRecord_iterator(pyxcdf_XCDFFile* self)
     return (PyObject*)it;
   }
   catch (const XCDFException& e) {
-    PyErr_SetString(PyExc_IOError, e.GetMessage().c_str());
+    PyErr_SetString(pyxcdf_XCDFException, e.GetMessage().c_str());
     Py_XDECREF(it);
     return NULL;
   }
@@ -421,7 +426,7 @@ XCDFField_iterator(pyxcdf_XCDFFile* self, PyObject* fieldName)
     return (PyObject*)it;
   }
   catch (const XCDFException& e) {
-    PyErr_SetString(PyExc_IOError, e.GetMessage().c_str());
+    PyErr_SetString(pyxcdf_XCDFException, e.GetMessage().c_str());
     Py_XDECREF(it);
     return NULL;
   }
@@ -473,13 +478,13 @@ XCDFFile_getRecord(pyxcdf_XCDFFile* self, PyObject* args)
     else {
       std::stringstream errMsg;
       errMsg << "Invalid event number " << id;
-      PyErr_SetString(PyExc_LookupError, errMsg.str().c_str());
+      PyErr_SetString(pyxcdf_XCDFException, errMsg.str().c_str());
     }
 
     return result;
   }
   catch (const XCDFException& e) {
-    PyErr_SetString(PyExc_IOError, e.GetMessage().c_str());
+    PyErr_SetString(pyxcdf_XCDFException, e.GetMessage().c_str());
     Py_XDECREF(result);
     return NULL;
   }
@@ -542,7 +547,7 @@ XCDFFile_addField(pyxcdf_XCDFFile* self, PyObject* args)
     }
   }
   catch (const XCDFException& e) {
-    PyErr_SetString(PyExc_IOError, e.GetMessage().c_str());
+    PyErr_SetString(pyxcdf_XCDFException, e.GetMessage().c_str());
     return NULL;
   }
 
@@ -595,7 +600,7 @@ XCDFFile_getcount(pyxcdf_XCDFFile* self, void* closure)
     return tmp;
   }
   catch (const XCDFException& e) {
-    PyErr_SetString(PyExc_IOError, e.GetMessage().c_str());
+    PyErr_SetString(pyxcdf_XCDFException, e.GetMessage().c_str());
     return NULL;
   }
 }
@@ -690,6 +695,12 @@ static PyMethodDef pyxcdf_methods[] =
     PyObject* module = PyModule_Create(&pyxcdfModule);
     if (!module)
       return NULL;
+
+    char xcdfExceptionName[64];
+    sprintf(xcdfExceptionName, "%s", "pyxcdf.XCDFException");
+    pyxcdf_XCDFException = PyErr_NewException(xcdfExceptionName, NULL, NULL);
+    Py_INCREF(pyxcdf_XCDFException);
+    PyModule_AddObject(module, "XCDFException", pyxcdf_XCDFException);
   }
 #else
   PyMODINIT_FUNC
@@ -711,6 +722,13 @@ static PyMethodDef pyxcdf_methods[] =
     // Add XCDFFile type to the module dictionary
     Py_INCREF(&pyxcdf_XCDFFileType);
     PyModule_AddObject(module, "XCDFFile", (PyObject*)&pyxcdf_XCDFFileType);
+
+    // Add XCDFException
+    char xcdfExceptionName[64];
+    sprintf(xcdfExceptionName, "%s", "pyxcdf.XCDFException");
+    pyxcdf_XCDFException = PyErr_NewException(xcdfExceptionName, NULL, NULL);
+    Py_INCREF(pyxcdf_XCDFException);
+    PyModule_AddObject(module, "XCDFException", pyxcdf_XCDFException);
 
     // Add XCDF enum types to the module
     PyModule_AddIntConstant(module, "XCDF_SIGNED_INTEGER",
