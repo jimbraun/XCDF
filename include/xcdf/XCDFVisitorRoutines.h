@@ -136,8 +136,7 @@ class WriteFieldVisitor {
     template <typename T>
     void operator()(XCDFDataManager<T>& manager) {
       for (unsigned i = 0; i < manager.GetSize(); ++i) {
-        blockData_.AddDatum(manager.GetIntegerRepresentation(i),
-                                                manager.GetActiveSize());
+        blockData_.AddDatum(manager.At(i), manager.GetActiveSize());
       }
     }
 

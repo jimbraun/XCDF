@@ -42,6 +42,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <xcdf/XCDFDefs.h>
 #include <xcdf/config.h>
 
+#include <xcdf/utility/Symbol.h>
+#include <xcdf/utility/NodeDefs.h>
+#include <xcdf/utility/Expression.h>
+
 #include <string>
 #include <vector>
 #include <map>
@@ -182,6 +186,16 @@ class XCDFFile {
     /// Return the file to a state where calling Read() gives the
     /// starting event, if possible.
     bool Rewind();
+
+    void AddAlias(const std::string& name, const std::string& expr) {
+
+      // Parse the expression
+      XCDFPtr<Expression> expPtr = xcdf_shared(new Expression(expr, *this));
+
+      // Add the expression to the alias tables
+      // depending on resulting data type
+
+    }
 
     /// Write out the current block and start a new one
     void StartNewBlock() {

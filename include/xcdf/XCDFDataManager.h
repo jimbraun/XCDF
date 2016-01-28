@@ -1,6 +1,6 @@
 
 /*
-Copyright (c) 2014, University of Maryland
+Copyright (c) 2016, James Braun
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -28,34 +28,30 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define XCDF_DATA_MANAGER_INCLUDED_H
 
 #include <xcdf/XCDFFieldData.h>
-#include <xcdf/XCDFField.h>
 #include <xcdf/XCDFDefs.h>
 
 #include <string>
-#include <cmath>
 #include <stdint.h>
 
 /*!
  * @class XCDFDataManager
  * @author Jim Braun
- * @brief XCDF field data routines used internally by XCDFFile.
+ * @brief Interface between XCDFFile and the field data.  Exists to couple
+ * a field data object with a parent field.
  */
 
-template <typename T>
 class XCDFDataManager {
 
 
   public:
 
-    XCDFDataManager(XCDFFieldType type,
-                    XCDFField<T> field,
-                    XCDFField<uint64_t> parent,
-                    bool hasParent) : type_(type),
-                                      field_(field),
-                                      parent_(parent),
-                                      hasParent_(hasParent) { }
-
-    XCDFFieldType GetType() const {return type_;}
+    template <typename T>
+    XCDFDataManager(const XCDFFieldType type,
+                    const XCDFFieldDataBasePtr fieldData,
+                    XCDFField<uint64_t>* parent = NULL) :
+                                                     type_(type),
+                                                     fieldData_(fieldData),
+                                                     parent_(parent) { }
 
     /*
      *  Add a datum to the field as a #resolution units above the active min.
@@ -63,7 +59,7 @@ class XCDFDataManager {
      */
     void AddIntegerRepresentation(uint64_t datum) {
 
-      AddUnchecked(CalculateTypeValue(datum));
+      fieldData_->AddIntegerRepresentation(datum);
     }
 
     /*
@@ -73,16 +69,16 @@ class XCDFDataManager {
      */
     void AddIntegerRepresentationAppend(uint64_t datum) {
 
-      field_.fieldData_->AddAppend(CalculateTypeValue(datum));
+      fieldData_->AddIntegerRepresentationAppend(datum);
     }
 
     /*
      *  Get the #resolution units between active min and datum
      *  at the given index.
      */
-    uint64_t GetIntegerRepresentation(int index) const {
+    uint64_t At(const int index) const {
 
-      return CalculateIntegerValue(At(index));
+      return fieldData_->GetIntegerRepresentation(index);
     }
 
     /*
@@ -90,266 +86,84 @@ class XCDFDataManager {
      * units from zero.  This avoids field data that changes value as
      * the active min changes block-to-block.
      */
-    void ZeroAlign() { }
+    void ZeroAlign() {fieldData_->ZeroAlign();}
 
     /// Set the active size of the field, as when reading back a file.
     void SetActiveSize(const uint32_t activeSize) {
-      field_.fieldData_->SetActiveSize(activeSize);
+      fieldData_->SetActiveSize(activeSize);
     }
 
     /*
      * Enter in data of known limits.
      */
-    void AddUnchecked(T value) {field_.fieldData_->AddUnchecked(value);}
+    void AddUnchecked(uint64_t value) {fieldData_->AddUnchecked(value);}
 
     /*
      * Clear the data from the XCDFFieldData vector.
      */
-    void Clear() {field_.fieldData_->Clear();}
+    void Clear() {fieldData_->Clear();}
 
     /*
      * Shrink the underlying buffer in the XCDFFieldData vector.
      * This is a reallocation and invalidates iterators.
      */
-    void Shrink() {field_.fieldData_->Shrink();}
+    void Shrink() {fieldData_->Shrink();}
 
     /*
      * Reset the data from the XCDFFieldData vector (e.g. a block had
      * just been completed).
      */
-    void Reset() {field_.fieldData_->Reset();}
+    void Reset() {fieldData_->Reset();}
 
     /*
      * Get the compressed size of each datum in the field (in bytes)
      * for the current block
      */
-    uint32_t GetActiveSize() const {
-
-      if (!field_.fieldData_->IsActiveSizeSet()) {
-
-        // Needs to appear as const from the outside, so cast appropriately
-        const_cast<XCDFField<T>& >
-                  (field_).fieldData_->SetActiveSize(CalcActiveSize());
-      }
-
-      return field_.fieldData_->GetActiveSize();
-    }
+    uint32_t GetActiveSize() const {return fieldData_->GetActiveSize();}
 
     /*
      * Get the resolution of the field.
      */
-    T GetResolution() const {return field_.GetResolution();}
-
-    /// Get a value from the field
-    const T& At(const uint32_t index) const {return field_.At(index);}
+    uint64_t GetResolution() const {return fieldData_->GetResolution();}
 
     /*
      *  Get the number of entries in the field in the current event
      */
-    uint32_t GetSize() const {return field_.GetSize();}
+    uint32_t GetSize() const {return fieldData_->GetSize();}
 
-    const std::string& GetName() const {return field_.GetName();}
-    unsigned GetReferenceCount() const {return field_.GetReferenceCount();}
+    const std::string& GetName() const {return fieldData_->GetName();}
 
     /*
      * Get the minimum value of the field in the current block.
      */
-    T GetActiveMin() const {return field_.fieldData_->GetActiveMin();}
+    uint64_t GetActiveMin() const {return fieldData_->GetActiveMin();}
 
-    /*
-     * Get the maximum value of the field in the current block.
-     */
-    T GetActiveMax() const {return field_.fieldData_->GetActiveMax();}
 
     /// Set the active min, as when reading back a file
-    void SetActiveMin(T activeMin) {
-
-      field_.fieldData_->SetActiveMin(activeMin);
+    void SetActiveMin(uint64_t activeMin) {
+      fieldData_->SetActiveMin(activeMin);
     }
-
-    /// Set the active max, as when reading back a file
-    void SetActiveMax(T activeMax) {
-
-      field_.fieldData_->SetActiveMax(activeMax);
-    }
-
-    /// Iterate over the field
-    typedef typename XCDFField<T>::ConstIterator ConstIterator;
-    ConstIterator Begin() const {return field_.Begin();}
-    ConstIterator End() const {return field_.End();}
-
-    XCDFField<T> GetField() const {return field_;}
 
     /// Check if we have a parent
-    bool HasParent() const {return hasParent_;}
+    bool HasParent() const {return parent_ != NULL;}
 
     /// Get the parent field
-    const XCDFField<uint64_t> GetParent() const {return parent_;}
+    const XCDFField<uint64_t>& GetParent() const {return *parent_;}
+
+    /// Get a pointer to the field data object
+    XCDFFieldDataBasePtr GetFieldDataPtr() {return fieldData_;}
 
 
-  protected:
+  private:
 
     /// Data type stored in the field.
     XCDFFieldType type_;
 
-    /// The backing XCDFField object
-    XCDFField<T> field_;
-
     /// Parent or dummy field, depending on hasParent_
-    XCDFField<uint64_t> parent_;
+    XCDFField<uint64_t>* parent_;
 
-    /// Does this field have a parent?
-    bool hasParent_;
-
-
-    /*
-     *  Convert #resolution units between active min and current datum back to
-     *  a field value of the appropriate type.
-     */
-    T CalculateTypeValue(uint64_t datum) const {
-
-      return GetActiveMin() + GetResolution() * datum;
-    }
-
-    /*
-     *  Get the #resolution units between active min and current datum.
-     */
-    uint64_t CalculateIntegerValue(T datum) const {
-
-      return static_cast<uint64_t>
-                ((datum - GetActiveMin()) / GetResolution());
-    }
-
-    /*
-     *  Calculate the number of bits needed to represent the field, considering
-     *  only the max and min.
-     */
-    unsigned CalcActiveSize() const {
-
-      uint64_t range = static_cast<uint64_t>(
-                   (GetActiveMax() - GetActiveMin()) / GetResolution());
-
-      unsigned bitCount = 0;
-      while (range != 0) {
-        bitCount++;
-        range = range >> 1;
-      }
-      return bitCount;
-    }
+    /// Backing field data
+    XCDFFieldDataBasePtr fieldData_;
 };
-
-//////// Specializations for uint64_t type
-
-template <>
-inline void XCDFDataManager<uint64_t>::ZeroAlign() {
-
-  uint64_t interval = GetActiveMin() / GetResolution();
-  SetActiveMin(GetResolution() * interval);
-}
-
-//////// Specializations for int64_t type
-
-template <>
-inline void XCDFDataManager<int64_t>::ZeroAlign() {
-
-  int64_t interval = GetActiveMin() / GetResolution();
-  if (GetActiveMin() < 0 && (GetActiveMin() % GetResolution())) {
-    --interval;
-  }
-  SetActiveMin(GetResolution() * interval);
-}
-
-//////// Specializations for double type
-
-template <>
-inline void XCDFDataManager<double>::ZeroAlign() {
-
-  // Skip zero-align if we're required to write all 64 bits
-  if (GetResolution() <= 0.) {
-    return;
-  }
-
-  double interval = GetActiveMin() / GetResolution() + 0.5;
-
-  // Zero align only if proximity to zero matters
-  if (fabs(interval) > 1e10 ||
-      std::isnan(GetActiveMin()) || std::isinf(GetActiveMin())) {
-
-    return;
-  }
-  SetActiveMin(GetResolution() * floor(interval));
-}
-
-template <>
-inline double
-XCDFDataManager<double>::CalculateTypeValue(uint64_t datum) const {
-
-  // Account for write with no compression (inf, NaN, etc.)
-  if (GetActiveSize() == 64) {
-    return XCDFSafeTypePun<uint64_t, double>(datum);
-  }
-
-  return GetActiveMin() + GetResolution() * datum;
-}
-
-    /*
-     *  Get the #resolution units between active min and current datum.
-     */
-template <>
-inline uint64_t
-XCDFDataManager<double>::CalculateIntegerValue(double datum) const {
-
-  // Write out entire double if required by the data (e.g. inf, NaN)
-  if (GetActiveSize() == 64) {
-    return XCDFSafeTypePun<double, uint64_t>(datum);
-  }
-
-  /*
-   *   Add half of resolution to interval to be sure
-   *   values are rounded correctly.
-   */
-  double interval = (datum - GetActiveMin()) / GetResolution() + 0.5;
-  return static_cast<const uint64_t>(interval);
-}
-
-    /*
-     * Specialization to calculate the number of bits needed
-     * to represent the field in the case of floating point
-     */
-template <>
-inline unsigned XCDFDataManager<double>::CalcActiveSize() const {
-
-  if (std::isnan(GetActiveMax()) || std::isinf(GetActiveMax()) ||
-      std::isnan(GetActiveMin()) || std::isinf(GetActiveMin()) ||
-      GetResolution() <= 0.) {
-
-    return 64;
-  }
-
-  double interval =
-      (GetActiveMax() - GetActiveMin()) / GetResolution() + 0.5;
-  uint64_t range = static_cast<uint64_t>(interval);
-
-  // Catch interval values that cannot be represented as uint64_t and
-  // must get 64-bit treatment.
-  // Note: static_cast<uint64_t> fails for interval values > ~1e19
-  if (interval > 1e16) {
-    return 64;
-  }
-
-  unsigned bitCount = 0;
-  while (range != 0) {
-    bitCount++;
-    range = range >> 1;
-  }
-
-  // Double-precision significand is 52 bits.  If larger than this,
-  // use full 64-bit double
-  if (bitCount > 52) {
-    return 64;
-  }
-
-  return bitCount;
-}
 
 #endif // XCDF_DATA_MANAGER_INCLUDED_H
