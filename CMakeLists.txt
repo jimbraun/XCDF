@@ -24,8 +24,8 @@ ENDIF ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
 # ------------------------------------------------------------------------------
 # Release information
 # ------------------------------------------------------------------------------
-SET (XCDF_MAJOR_VERSION  3 CACHE STRING "Major version number")
-SET (XCDF_MINOR_VERSION  0 CACHE STRING "Minor version number")
+SET (XCDF_MAJOR_VERSION  2 CACHE STRING "Major version number")
+SET (XCDF_MINOR_VERSION  11 CACHE STRING "Minor version number")
 SET (XCDF_PATCH_VERSION  0 CACHE STRING "Patch number")
 
 # ------------------------------------------------------------------------------
