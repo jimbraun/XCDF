@@ -25,7 +25,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <xcdf/XCDFFile.h>
-#include <xcdf/XCDFVisitorRoutines.h>
+#include <xcdf/XCDFFieldRoutines.h>
+#include <xcdf/XCDFFieldDataAllocator.h>
 
 #include <string>
 #include <cstring>
@@ -66,8 +67,7 @@ void XCDFFile::Close() {
   if (IsWritable()) {
 
     // Check that the fields are empty
-    CheckFieldContentsVisitor checkFieldContentsVisitor;
-    ApplyFieldManagerVisitor(checkFieldContentsVisitor);
+    FieldListForEach(CheckFieldContents);
 
     // Write out remaining data
     if (blockEventCount_ > 0) {
@@ -112,17 +112,7 @@ void XCDFFile::Close() {
 
   streamHandler_.Close();
 
-  unsignedIntegerBareFieldList_.clear();
-  signedIntegerBareFieldList_.clear();
-  floatingPointBareFieldList_.clear();
-
-  unsignedIntegerFieldList_.clear();
-  signedIntegerFieldList_.clear();
-  floatingPointFieldList_.clear();
-
-  unsignedIntegerFieldMap_.clear();
-  signedIntegerFieldMap_.clear();
-  floatingPointFieldMap_.clear();
+  fieldList_.clear();
 
   eventCount_ = 0;
   blockCount_ = 0;
@@ -316,8 +306,7 @@ bool XCDFFile::PrepareAppend(const char* fileName,
 
     // Need to reset the fields because an event was potentially read, causing
     // active min/max to be stored
-    ResetFieldVisitor reset;
-    ApplyFieldManagerVisitor(reset);
+    FieldListForEach(ResetField);
   }
   checkedReadForAppendFlag_ = false;
 
@@ -394,20 +383,19 @@ int XCDFFile::Write() {
   }
 
   // Check that fields are filled and have the correct number of entries
-  CheckFieldVisitor checkFieldVisitor;
-  ApplyFieldManagerVisitor(checkFieldVisitor);
+  FieldListForEach(CheckFieldSize);
 
-  // Copy the data and clear the fields
-  UncompressedBufferWriteFieldVisitor uWriteVisitor(uncompressedBlock_);
-  ApplyFieldManagerVisitor(uWriteVisitor);
-
-  ClearFieldVisitor clear;
-  ApplyFieldManagerVisitor(clear);
+  // Stash the data and clear the fields
+  FieldListForEach(StashField);
 
   eventCount_++;
   blockEventCount_++;
 
-  uint64_t currentBlockSize = uncompressedBlock_.GetByteCount();
+  uint64_t currentBlockSize = 0;
+  for (FieldList::iterator it = fieldList_.begin();
+                           it != fieldList_.end(); ++it) {
+    currentBlockSize += (*it)->GetStashSize() * XCDF_DATUM_WIDTH_BYTES;
+  }
 
   // Write out the block if we've reached specified block size or
   // buffer has reached the specified threshold size
@@ -418,11 +406,9 @@ int XCDFFile::Write() {
     // If last block was larger than 150 MB, deallocate memory buffers.
     // Reallocation will require relatively zero CPU in this case.
     if (currentBlockSize > 150000000) {
-      uncompressedBlock_.Shrink();
       blockData_.Clear();
       blockData_.Shrink();
-      ShrinkFieldVisitor shrink;
-      ApplyFieldManagerVisitor(shrink);
+      FieldListForEach(ShrinkField);
     }
   }
 
@@ -449,12 +435,18 @@ void XCDFFile::WriteBlock() {
   blockHeader_.SetEventCount(blockEventCount_);
 
   // Align the field bins with zero if possible
-  ZeroAlignFieldVisitor zeroAlign;
-  ApplyFieldManagerVisitor(zeroAlign);
+  if (zeroAlign_) {
+    FieldListForEach(ZeroAlignField);
+  }
 
   // Write the field headers
-  BlockHeaderFieldVisitor blockHeaderFieldVisitor(blockHeader_);
-  ApplyFieldManagerVisitor(blockHeaderFieldVisitor);
+  XCDFFieldHeader header;
+  for (FieldList::iterator it = fieldList_.begin();
+                           it != fieldList_.end(); ++it) {
+    header.rawActiveMin_ = (*it)->GetRawActiveMin();
+    header.activeSize_ = (*it)->GetActiveSize();
+    blockHeader_.AddFieldHeader(header);
+  }
 
   // Write the data block
   for (unsigned i = 0; i < blockEventCount_; ++i) {
@@ -480,8 +472,7 @@ void XCDFFile::WriteBlock() {
   WriteFrame();
 
   // Reset each field
-  ResetFieldVisitor reset;
-  ApplyFieldManagerVisitor(reset);
+  FieldListForEach(ResetField);
 
   blockCount_++;
 
@@ -496,15 +487,13 @@ void XCDFFile::WriteBlock() {
 void XCDFFile::WriteEvent() {
 
   // Read in event from the uncompressed buffer
-  UncompressedBufferReadFieldVisitor uReadFieldVisotor(uncompressedBlock_);
-  ApplyFieldManagerVisitor(uReadFieldVisotor);
+  FieldListForEach(UnstashField);
 
   // Compress event and clear field
-  WriteFieldVisitor writeFieldVisitor(blockData_);
-  ApplyFieldManagerVisitor(writeFieldVisitor);
-
-  ClearFieldVisitor clear;
-  ApplyFieldManagerVisitor(clear);
+  for (FieldList::iterator it = fieldList_.begin();
+                           it != fieldList_.end(); ++it) {
+    (*it)->Dump(blockData_);
+  }
 }
 
 void XCDFFile::ReadEvent() {
@@ -512,15 +501,9 @@ void XCDFFile::ReadEvent() {
   assert(blockEventCount_ > 0);
 
   // Read in event from the compressed buffer
-  ClearFieldVisitor clear;
-  ApplyFieldManagerVisitor(clear);
-
-  if (checkedReadForAppendFlag_) {
-    CheckedReadFieldVisitor readFieldVisitor(blockData_);
-    ApplyFieldManagerVisitor(readFieldVisitor);
-  } else {
-    ReadFieldVisitor readFieldVisitor(blockData_);
-    ApplyFieldManagerVisitor(readFieldVisitor);
+  for (FieldList::iterator it = fieldList_.begin();
+                           it != fieldList_.end(); ++it) {
+    (*it)->Load(blockData_, checkedReadForAppendFlag_);
   }
 
   blockEventCount_--;
@@ -550,36 +533,14 @@ bool XCDFFile::ReadNextBlock() {
       XCDFFatal("File corrupt: Unexpected number of block headers");
     }
 
-    // Update field sizes for the block.  First integer fields, in order,
-    // followed by signed integer fields, then floating point fields.
+    // Update field sizes for the block.
     uint32_t i = 0;
-    uint32_t threshSignedInt = unsignedIntegerFieldList_.size();
-    uint32_t threshFloat =
-        unsignedIntegerFieldList_.size() + signedIntegerFieldList_.size();
-
     for (std::vector<XCDFFieldHeader>::const_iterator
                       it = blockHeader_.FieldHeadersBegin();
                       it != blockHeader_.FieldHeadersEnd(); ++it) {
 
-      if (i < threshSignedInt) {
-
-        unsignedIntegerFieldList_[i].SetActiveMin(it->rawActiveMin_);
-        unsignedIntegerFieldList_[i].SetActiveSize(it->activeSize_);
-
-      } else if (i >= threshFloat) {
-
-        uint32_t index = i - threshFloat;
-        floatingPointFieldList_[index].SetActiveMin(
-                     XCDFSafeTypePun<uint64_t, double>(it->rawActiveMin_));
-        floatingPointFieldList_[index].SetActiveSize(it->activeSize_);
-
-      } else {
-
-        uint32_t index = i - threshSignedInt;
-        signedIntegerFieldList_[index].SetActiveMin(
-                     XCDFSafeTypePun<uint64_t, int64_t>(it->rawActiveMin_));
-        signedIntegerFieldList_[index].SetActiveSize(it->activeSize_);
-      }
+      fieldList_[i]->SetRawActiveMin(it->rawActiveMin_);
+      fieldList_[i]->SetActiveSize(it->activeSize_);
       i++;
     }
 
@@ -600,8 +561,7 @@ bool XCDFFile::ReadNextBlock() {
     if (blockData_.Capacity() > 150000000) {
       blockData_.Clear();
       blockData_.Shrink();
-      ShrinkFieldVisitor shrink;
-      ApplyFieldManagerVisitor(shrink);
+      FieldListForEach(ShrinkField);
     }
 
     blockData_.UnpackFrame(currentFrame_);
@@ -758,51 +718,7 @@ void XCDFFile::ReadFileHeaders() {
                         it != fileHeader_.FieldDescriptorsEnd(); ++it) {
 
     XCDFFieldType type = static_cast<XCDFFieldType>(it->type_);
-
-    // Allocate the field
-    switch (type) {
-
-      case XCDF_UNSIGNED_INTEGER: {
-        XCDFDataManager<uint64_t> manager =
-            AllocateField(it->name_, type,
-                          it->rawResolution_, it->parentName_);
-
-        unsignedIntegerFieldList_.push_back(manager);
-        unsignedIntegerBareFieldList_.push_back(manager.GetField());
-        unsignedIntegerFieldMap_.insert(std::pair<std::string,
-                  XCDFDataManager<uint64_t> >(it->name_, manager));
-        break;
-      }
-
-      case XCDF_SIGNED_INTEGER: {
-        XCDFDataManager<int64_t> manager =
-            AllocateField(it->name_, type,
-                          XCDFSafeTypePun<uint64_t, int64_t>(
-                                   it->rawResolution_), it->parentName_);
-
-        signedIntegerFieldList_.push_back(manager);
-        signedIntegerBareFieldList_.push_back(manager.GetField());
-        signedIntegerFieldMap_.insert(std::pair<std::string,
-                  XCDFDataManager<int64_t> >(it->name_, manager));
-        break;
-      }
-
-      case XCDF_FLOATING_POINT: {
-        XCDFDataManager<double> manager =
-            AllocateField(it->name_, type,
-                          XCDFSafeTypePun<uint64_t, double>(
-                                   it->rawResolution_), it->parentName_);
-
-        floatingPointFieldList_.push_back(manager);
-        floatingPointBareFieldList_.push_back(manager.GetField());
-        floatingPointFieldMap_.insert(std::pair<std::string,
-                  XCDFDataManager<double> >(it->name_, manager));
-        break;
-      }
-
-      default:
-        XCDFFatal("Unknown field type: " << type);
-    }
+    AllocateField(it->name_, type, it->rawResolution_, it->parentName_);
   }
 
   // If we have the block table, check if there are any more
@@ -1118,25 +1034,104 @@ uint64_t XCDFFile::GetEventCount() {
   return totalEventCount;
 }
 
-void XCDFFile::CheckParent(const std::string& parentName) const {
+bool operator<(const XCDFFieldType& type, const XCDFFieldDataBasePtr& ptr) {
+  return type < ptr->GetType();
+}
 
-  std::map<std::string, XCDFDataManager<uint64_t> >::const_iterator
-                              it = unsignedIntegerFieldMap_.find(parentName);
+/*
+ *  Checks the field sanity, checks the parent (if applicable),
+ *  then adds the field to the XCDFFileHeader object (if opened for
+ *  writing) to be written to file.
+ */
+void XCDFFile::AllocateField(const std::string& name,
+                             const XCDFFieldType type,
+                             const uint64_t resolution,
+                             const std::string& parentName,
+                             bool writeHeader) {
 
-  // Check that parent field exists in the uint64_t map
-  if (it == unsignedIntegerFieldMap_.end()) {
-    XCDFFatal("Parent field \"" << parentName << "\" has not been" <<
-                            " allocated or is not unsigned integer type");
+  // Check if we already have a field with the given name
+  if (HasField(name)) {
+    XCDFFatal("Cannot create field " << name << ": already exists");
   }
 
-  // Make sure resolution is 1, as it describes the length of a vector
-  if ((it->second).GetResolution() != 1) {
+  // Check for illegal characters
+  if (name.find_first_of(",:+-/*%^)(\\\"=><&|!") != std::string::npos) {
+
+    XCDFFatal("Field name " << name << " contains unsupported" <<
+                                " characters: \",:+-/*%^)(\\\"=><&|!");
+  }
+
+  // Check for empty string
+  if (name.size() == 0) {
+    XCDFFatal("Field name cannot be an empty string");
+  }
+
+  // Check for leading/trailing whitespace
+  if (name.find_first_not_of(" \t\r\n") != 0 ||
+      name.find_last_not_of(" \t\r\n") != name.size() - 1) {
+    XCDFFatal("Field name " << name << " contains unsupported" <<
+                                    " leading or trailing white space");
+  }
+
+  char firstChar = name[0];
+  if (!isalpha(firstChar)) {
+    XCDFFatal("Field name " << name << " does not start with an" <<
+                                                " alphabetic character");
+  }
+
+  if (!name.compare("currentEventNumber")) {
+    XCDFFatal("Field name \"currentEventNumber\"" <<
+                         " is reserved and cannot be used.");
+  }
+
+  const XCDFFieldDataBase* parent = NULL;
+  if (parentName.compare(NO_PARENT)) {
+    parent = CheckParent(parentName);
+  }
+
+  // If writing, put the descriptor into the header
+  if (writeHeader) {
+    XCDFFieldDescriptor descriptor;
+    descriptor.name_ = name;
+    descriptor.type_ = type;
+    descriptor.rawResolution_ = resolution;
+
+    // Can just use name here if we write uint fields first.  They're
+    // always in order, so no worries.
+    descriptor.parentName_ = parentName;
+    fileHeader_.AddFieldDescriptor(descriptor);
+  }
+
+  XCDFFieldDataBasePtr ptr =
+      XCDFFieldDataAllocator::AllocateField(name, type, resolution, parent);
+
+  /* Order fields by:
+   * 1. unsigned integers
+   * 2. signed integers
+   * 3. floating point
+   * This preserves field order compatibility with previous versions
+   */
+  fieldList_.insert(
+      std::upper_bound(fieldList_.begin(), fieldList_.end(), type), ptr);
+}
+
+const XCDFFieldDataBase*
+XCDFFile::CheckParent(const std::string& parentName) const {
+
+  if (!HasField(parentName)) {
+    XCDFFatal("Parent field \"" << parentName << "\" has not been allocated");
+  }
+  if (!IsUnsignedIntegerField(parentName)) {
+    XCDFFatal("Parent field \"" << parentName <<
+                                     "\" is not unsigned integer type");
+  }
+  const XCDFFieldDataBase& parent = **findFieldByName(parentName, true);
+  if (parent.GetRawResolution() != 1) {
     XCDFFatal("Parent field \"" << parentName << "\" must have resolution 1");
   }
-
-  // Parent field should not be a vector field
-  if ((it->second).HasParent()) {
+  if (parent.HasParent()) {
     XCDFFatal("Parent field \"" << parentName <<
-                                 "\" cannot be a vector field");
+                                     "\" cannot be a vector field");
   }
+  return &parent;
 }

@@ -1,6 +1,6 @@
 
 /*
-Copyright (c) 2014, University of Maryland
+Copyright (c) 2016, James Braun
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -27,79 +27,128 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef XCDF_FIELD_INCLUDED_H
 #define XCDF_FIELD_INCLUDED_H
 
+#include <xcdf/XCDFDefs.h>
 #include <xcdf/XCDFFieldData.h>
-#include <xcdf/XCDFPtr.h>
 
 #include <string>
 #include <stdint.h>
+
+template <typename T>
+class XCDFFieldData;
 
 /*!
  * @class XCDFField
  * @author Jim Braun
  * @brief Wrapper class representing an XCDF data field.  Data is stored
- * in an instance of XCDFFieldData.  Provides reference counting and copy/
- * assign to manage memory.  Field access routines are provided here.
+ * in an instance of XCDFFieldData.
  */
 
 template <typename T>
-class XCDFField {
+class ConstXCDFField {
 
   public:
 
-    XCDFField(const std::string& name,
-              const T resolution) :
-           fieldData_(xcdf_shared(new XCDFFieldData<T>(name, resolution))) { }
+    typedef XCDFFieldData<T> XCDFFieldDataType;
 
-    XCDFField() : fieldData_(xcdf_shared(new XCDFFieldData<T>("", 1))) { }
+    ConstXCDFField(const XCDFFieldDataType* fieldData) :
+                                      fieldData_(fieldData) { }
 
-    const std::string& GetName() const {return fieldData_->GetName();}
+    /// Allow default construction, but use of the default-constructed
+    /// object is not allowed
+    ConstXCDFField() : fieldData_(NULL) { }
 
-    T GetResolution() const {return fieldData_->GetResolution();}
+    /// Check if we have a parent
+    bool HasParent() const {return FieldData()->HasParent();}
+
+    /// Get the parent field.
+    ConstXCDFField<uint64_t> GetParent() const {
+      return ConstXCDFField<uint64_t>(FieldData()->GetParent());
+    }
+
+    const std::string& GetName() const {return FieldData()->GetName();}
+    const std::string& GetParentName() const {
+      return FieldData()->GetParentName();
+    }
+
+    T GetResolution() const {return FieldData()->GetResolution();}
 
     /// Get the number of entries in the field in the current event
-    uint32_t GetSize() const {return fieldData_->GetSize();}
-
-
-    /// Add a datum to the field
-    void Add(const T value) {fieldData_->Add(value);}
-
-    XCDFField<T>& operator<<(const T value) {
-      fieldData_->Add(value);
-      return *this;
-    }
-
+    unsigned GetSize() const {return FieldData()->GetSize();}
 
     /// Get a value from the field
-    const T& At(const uint32_t index) const {return fieldData_->At(index);}
+    const T& At(const uint32_t index) const {return FieldData()->At(index);}
     const T& operator[](const uint32_t index) const {
-      return fieldData_->At(index);
+      return FieldData()->At(index);
     }
-    const T& operator*() const {return fieldData_->At(0);}
-
+    const T& operator*() const {return FieldData()->At(0);}
 
     /// Iterate over the field
-    typedef typename XCDFFieldData<T>::Iterator Iterator;
-    typedef typename XCDFFieldData<T>::ConstIterator ConstIterator;
-
-    Iterator Begin() {return fieldData_->Begin();}
-    Iterator End() {return fieldData_->End();}
-
-    ConstIterator Begin() const {return fieldData_->Begin();}
-    ConstIterator End() const {return fieldData_->End();}
+    typedef typename XCDFFieldDataType::ConstIterator ConstIterator;
+    ConstIterator Begin() const {return FieldData()->Begin();}
+    ConstIterator End() const {return FieldData()->End();}
 
   private:
 
-    XCDFPtr<XCDFFieldData<T> > fieldData_;
+    const XCDFFieldDataType* fieldData_;
 
-    unsigned GetReferenceCount() const {
-      return fieldData_.GetReferenceCount();
+    // Check if backing fieldData object exists.  If not, throw an exception.
+    // This branch is not a performance penalty, as the CPU should predict
+    // this one correctly ~100% of the time.
+    const XCDFFieldDataType* FieldData() const {
+      if (fieldData_) {
+        return fieldData_;
+      } else {
+        XCDFFatal("Use of default-constructed XCDFField not supported.");
+        return NULL;
+      }
+    }
+};
+
+template <typename T>
+class XCDFField : public ConstXCDFField<T> {
+
+  public:
+
+    typedef XCDFFieldData<T> XCDFFieldDataType;
+
+    XCDFField(XCDFFieldDataType* fieldData) : ConstXCDFField<T>(fieldData),
+                                              fieldData_(fieldData) { }
+
+    /// Allow default construction, but use of the default-constructed
+    /// object is not allowed
+    XCDFField() : fieldData_(NULL) { }
+
+    /// Add a datum to the field
+    void Add(const T value) {FieldData()->Add(value);}
+
+    XCDFField<T>& operator<<(const T value) {
+      FieldData()->Add(value);
+      return *this;
     }
 
-  template <typename V> friend class XCDFDataManager;
+  private:
+
+    XCDFFieldDataType* fieldData_;
+
+    // Check if backing fieldData object exists.  If not, throw an exception.
+    // This branch is not a performance penalty, as the CPU should predict
+    // this one correctly ~100% of the time.
+    XCDFFieldDataType* FieldData() const {
+      if (fieldData_) {
+        return fieldData_;
+      } else {
+        XCDFFatal("Use of default-constructed XCDFField not supported.");
+        return NULL;
+      }
+    }
 };
 
 typedef XCDFField<uint64_t> XCDFUnsignedIntegerField;
-typedef XCDFField<int64_t> XCDFSignedIntegerField;
-typedef XCDFField<double> XCDFFloatingPointField;
+typedef XCDFField<int64_t>  XCDFSignedIntegerField;
+typedef XCDFField<double>   XCDFFloatingPointField;
+
+typedef ConstXCDFField<uint64_t> ConstXCDFUnsignedIntegerField;
+typedef ConstXCDFField<int64_t>  ConstXCDFSignedIntegerField;
+typedef ConstXCDFField<double>   ConstXCDFFloatingPointField;
 
 #endif // XCDF_FIELD_INCLUDED_H

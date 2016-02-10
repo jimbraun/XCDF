@@ -39,14 +39,14 @@ class FieldNode : public Node<T> {
 
   public:
 
-    FieldNode(XCDFField<T> field) : field_(field) { }
+    FieldNode(ConstXCDFField<T> field) : field_(field) { }
 
     T operator[](unsigned index) const {return field_[index];}
     unsigned GetSize() const {return field_.GetSize();}
 
   private:
 
-    XCDFField<T> field_;
+    ConstXCDFField<T> field_;
 };
 
 template <typename T>

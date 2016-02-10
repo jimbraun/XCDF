@@ -28,10 +28,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define XCDF_BLOCK_DATA_INCLUDED_H
 
 #include <xcdf/XCDFDefs.h>
+#include <xcdf/XCDFFrame.h>
 
 #include <vector>
 #include <cstring>
 #include <stdint.h>
+#include <cassert>
 
 class XCDFBlockData {
 

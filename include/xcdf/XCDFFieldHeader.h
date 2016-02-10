@@ -33,7 +33,7 @@ class XCDFFieldHeader {
 
   public:
 
-    XCDFFieldHeader() { }
+    XCDFFieldHeader() : rawActiveMin_(0), activeSize_(0) { }
     ~XCDFFieldHeader() { }
 
     uint64_t rawActiveMin_;
