@@ -62,11 +62,11 @@ class XCDFFieldDataBase {
     virtual void Shrink() = 0;
     virtual void Reset() = 0;
     virtual uint32_t GetActiveSize() const = 0;
-    virtual uint64_t GetResolution() const = 0;
+    virtual uint64_t GetRawResolution() const = 0;
     virtual unsigned GetSize() const = 0;
     virtual unsigned GetExpectedSize() const = 0;
-    virtual uint64_t GetActiveMin() const = 0;
-    virtual void SetActiveMin(uint64_t activeMin) = 0;
+    virtual uint64_t GetRawActiveMin() const = 0;
+    virtual void SetRawActiveMin(uint64_t rawActiveMin) = 0;
 
     XCDFFieldType GetType() const {return type_;}
 

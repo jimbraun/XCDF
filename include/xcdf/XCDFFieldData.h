@@ -110,7 +110,6 @@ class XCDFFieldData : public XCDFFieldDataBase {
         // Make activeSize_ mutable so this method is const
         activeSize_ = CalcActiveSize();
       }
-
       return activeSize_;
     }
 
@@ -118,18 +117,23 @@ class XCDFFieldData : public XCDFFieldDataBase {
      * Get the resolution of the field cast as a uint64_t
      */
     virtual uint64_t
-    GetResolution() const {return XCDFSafeTypePun<T, uint64_t>(resolution_);}
+    GetRawResolution() const {
+      return XCDFSafeTypePun<T, uint64_t>(resolution_);
+    }
+    virtual T
+    GetResolution() const {return resolution_;}
 
     /*
      * Get the minimum value of the field in the current block cast
      * as a uint64_t
      */
     virtual uint64_t
-    GetActiveMin() const {return XCDFSafeTypePun<T, uint64_t>(activeMin_);}
+    GetRawActiveMin() const {return XCDFSafeTypePun<T, uint64_t>(activeMin_);}
 
     /// Set the active min, as when reading back a file
-    virtual void SetActiveMin(uint64_t activeMin) {
-      activeMin_ = XCDFSafeTypePun<uint64_t, T>(activeMin);
+    virtual void SetRawActiveMin(uint64_t rawActiveMin) {
+      activeMin_ = XCDFSafeTypePun<uint64_t, T>(rawActiveMin);
+      minSet_ = true;
     }
 
     /// Iterate over the field
@@ -179,13 +183,13 @@ class XCDFFieldData : public XCDFFieldDataBase {
     /*
      *  Load a value from the XCDFBlockData
      */
-    void LoadValue(XCDFBlockData& data, bool checkMax) {
-      T value = CalculateTypeValue(data.GetDatum(GetActiveSize()));
+    T LoadValue(XCDFBlockData& data, bool checkMax) {
+      T value = CalculateTypeValue(data.GetDatum(activeSize_));
       if (checkMax) {
         // We only have the active min.  We need to rediscover the max.
         CheckActiveMax(value);
       }
-      AddDirect(value);
+      return value;
     }
 
     /*
@@ -244,7 +248,7 @@ template <>
 inline void XCDFFieldData<uint64_t>::ZeroAlign() {
 
   uint64_t interval = activeMin_ / resolution_;
-  SetActiveMin(resolution_ * interval);
+  activeMin_ = resolution_ * interval;
 }
 
 //////// Specializations for int64_t type
@@ -256,7 +260,7 @@ inline void XCDFFieldData<int64_t>::ZeroAlign() {
   if (activeMin_ < 0 && (activeMin_ % resolution_)) {
     --interval;
   }
-  SetActiveMin(resolution_ * interval);
+  activeMin_ = resolution_ * interval;
 }
 
 //////// Specializations for double type
@@ -277,7 +281,7 @@ inline void XCDFFieldData<double>::ZeroAlign() {
 
     return;
   }
-  SetActiveMin(resolution_ * floor(interval));
+  activeMin_ = resolution_ * floor(interval);
 }
 
 template <>
@@ -357,7 +361,7 @@ inline void XCDFFieldData<double>::CheckActiveMin(const double value) {
   DoCheckActiveMin(value);
 
   // Need to care for NaNs, since comparison is always false
-  if (std::isnan(static_cast<double>(value))) {
+  if (std::isnan(value)) {
     activeMin_ = value;
   }
 }
@@ -367,7 +371,7 @@ inline void XCDFFieldData<double>::CheckActiveMax(const double value) {
   DoCheckActiveMax(value);
 
   // Need to care for NaNs, since comparison is always false
-  if (std::isnan(static_cast<double>(value))) {
+  if (std::isnan(value)) {
     activeMax_ = value;
   }
 }

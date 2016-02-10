@@ -443,7 +443,7 @@ void XCDFFile::WriteBlock() {
   XCDFFieldHeader header;
   for (FieldList::iterator it = fieldList_.begin();
                            it != fieldList_.end(); ++it) {
-    header.rawActiveMin_ = (*it)->GetActiveMin();
+    header.rawActiveMin_ = (*it)->GetRawActiveMin();
     header.activeSize_ = (*it)->GetActiveSize();
     blockHeader_.AddFieldHeader(header);
   }
@@ -539,7 +539,7 @@ bool XCDFFile::ReadNextBlock() {
                       it = blockHeader_.FieldHeadersBegin();
                       it != blockHeader_.FieldHeadersEnd(); ++it) {
 
-      fieldList_[i]->SetActiveMin(it->rawActiveMin_);
+      fieldList_[i]->SetRawActiveMin(it->rawActiveMin_);
       fieldList_[i]->SetActiveSize(it->activeSize_);
       i++;
     }
@@ -1126,7 +1126,7 @@ XCDFFile::CheckParent(const std::string& parentName) const {
                                      "\" is not unsigned integer type");
   }
   const XCDFFieldDataBase& parent = **findFieldByName(parentName, true);
-  if (parent.GetResolution() != 1) {
+  if (parent.GetRawResolution() != 1) {
     XCDFFatal("Parent field \"" << parentName << "\" must have resolution 1");
   }
   if (parent.HasParent()) {

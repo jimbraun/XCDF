@@ -51,6 +51,7 @@ int main(int argc, char** argv) {
     } else {
       f.Open("randomtest.xcd", "a");
     }
+
     field1 = f.AllocateUnsignedIntegerField("field1", 1);
     field2 = f.AllocateUnsignedIntegerField("field2", 4);
     field3 = f.AllocateSignedIntegerField("field3", 2);

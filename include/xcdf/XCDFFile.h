@@ -661,8 +661,9 @@ class XCDFFile {
 
       if (field.GetResolution() != resolution ||
           field.GetParentName() != parentName) {
-             XCDFFatal("Unable to find matching field for " <<
-                 field.GetName() << " in append");
+
+        XCDFFatal("Unable to find matching field for " <<
+                                 field.GetName() << " in append");
       }
     }
 

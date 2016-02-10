@@ -60,21 +60,21 @@ class XCDFFieldDataScalar : public XCDFFieldData<T> {
     virtual void Shrink() { }
 
     virtual void Load(XCDFBlockData& data, bool checkMax) {
-      Clear();
-      XCDFFieldData<T>::LoadValue(data, checkMax);
+      hasData_ = 1;
+      datum_ = XCDFFieldData<T>::LoadValue(data, checkMax);
     }
     virtual void Dump(XCDFBlockData& data) {
       data.AddDatum(XCDFFieldData<T>::CalculateIntegerValue(datum_),
                     XCDFFieldData<T>::GetActiveSize());
-      Clear();
+      hasData_ = 0;
     }
 
     virtual void Stash() {
       XCDFFieldData<T>::stash_.push_back(datum_);
-      Clear();
+      hasData_ = 0;
     }
     virtual void Unstash() {
-      Clear();
+      hasData_ = 1;
       datum_ = XCDFFieldData<T>::stash_.front();
       XCDFFieldData<T>::stash_.pop_front();
     }
