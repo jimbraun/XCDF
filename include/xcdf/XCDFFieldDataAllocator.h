@@ -30,6 +30,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <xcdf/XCDFFieldData.h>
 #include <xcdf/XCDFFieldDataScalar.h>
 #include <xcdf/XCDFFieldDataVector.h>
+#include <xcdf/XCDFFieldDataRecursive.h>
 #include <xcdf/XCDFDefs.h>
 
 namespace {
@@ -71,9 +72,16 @@ DoAllocateField(const std::string& name,
       XCDFFatal("Using a non-unsigned-integer field as a parent")
     }
     const XCDFFieldData<uint64_t>* p =
-            static_cast<const XCDFFieldData<uint64_t>* >(parent);
-    return XCDFFieldDataBasePtr(
+                static_cast<const XCDFFieldData<uint64_t>* >(parent);
+    if (parent->HasParent()) {
+      // A 2D+ vector.  Use XCDFFieldDataRecursive.
+      return XCDFFieldDataBasePtr(
+                 new XCDFFieldDataRecursive<T>(type, name, resolution, p));
+    } else {
+      // A 1D vector.  Use XCDFFieldDataVector for efficiency.
+      return XCDFFieldDataBasePtr(
                  new XCDFFieldDataVector<T>(type, name, resolution, p));
+    }
   } else {
     return XCDFFieldDataBasePtr(
                  new XCDFFieldDataScalar<T>(type, name, resolution));

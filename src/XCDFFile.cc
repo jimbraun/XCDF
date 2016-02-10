@@ -1129,9 +1129,5 @@ XCDFFile::CheckParent(const std::string& parentName) const {
   if (parent.GetRawResolution() != 1) {
     XCDFFatal("Parent field \"" << parentName << "\" must have resolution 1");
   }
-  if (parent.HasParent()) {
-    XCDFFatal("Parent field \"" << parentName <<
-                                     "\" cannot be a vector field");
-  }
   return &parent;
 }
