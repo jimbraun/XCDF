@@ -32,10 +32,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 int main(int argc, char** argv) {
 
   XCDFFile f("test.xcd", "w");
+  printf("Opened\n");
   XCDFUnsignedIntegerField field1 =
                   f.AllocateUnsignedIntegerField("field1", 1);
+  printf("field1 allocated\n");
   XCDFUnsignedIntegerField field2 =
                   f.AllocateUnsignedIntegerField("field2", 1, "field1");
+  printf("field2 allocated\n");
   XCDFFloatingPointField field3 =
                   f.AllocateFloatingPointField("field3", 0.1);
   XCDFFloatingPointField field4 =
@@ -47,6 +50,8 @@ int main(int argc, char** argv) {
   XCDFFloatingPointField field7 =
                   f.AllocateFloatingPointField("field7", 0.);
 
+  printf("all allocated\n");
+
   field1 << 2;
   field2 << 1 << 1;
   field3 << 0.1;
@@ -55,7 +60,11 @@ int main(int argc, char** argv) {
   field6 << 0xDEADBEEFDEADBEEFULL;
   field7 << 0.12;
 
+  printf("writing\n");
+
   std::cout << f.Write() << std::endl;
+
+  printf("wrote\n");
 
   field1 << 2;
   field2 << 1 << 3;
@@ -71,7 +80,11 @@ int main(int argc, char** argv) {
 
   field7 << 0.12;
 
+  printf("writing again\n");
+
   std::cout << f.Write() << std::endl;
+
+  printf("wrote again\n");
 
   for (int k = 0; k < 1000; k++) {
     field1 << 2;
@@ -83,6 +96,8 @@ int main(int argc, char** argv) {
     field7 << 0.12;
     f.Write();
   }
+
+  printf("finishing file\n");
 
   f.AddComment("test file");
 

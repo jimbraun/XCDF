@@ -94,9 +94,9 @@ class FieldsByNameSelector {
   private:
 
     int nfields_;
-    std::vector<XCDFUnsignedIntegerField> unsignedFields_;
-    std::vector<XCDFSignedIntegerField> signedFields_;
-    std::vector<XCDFFloatingPointField> floatFields_;
+    std::vector<ConstXCDFUnsignedIntegerField> unsignedFields_;
+    std::vector<ConstXCDFSignedIntegerField> signedFields_;
+    std::vector<ConstXCDFFloatingPointField> floatFields_;
     std::vector<unsigned> unsignedIndices_;
     std::vector<unsigned> signedIndices_;
     std::vector<unsigned> floatIndices_;

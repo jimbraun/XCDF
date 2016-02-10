@@ -41,16 +41,19 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 template <typename T>
-class XCDFFieldDataVector : XCDFFieldData<T> {
+class XCDFFieldDataVector : public XCDFFieldData<T> {
 
 
   public:
 
     XCDFFieldDataVector(const XCDFFieldType type,
                         const std::string& name,
-                        XCDFField<uint64_t>* parent,
-                        const T res) :
-                          XCDFFieldData(type, name, parent, res) { }
+                        const T res,
+                        const XCDFFieldData<uint64_t>* parent) :
+                                       XCDFFieldData<T>(type, name, res),
+                                       parent_(parent) { }
+
+    typedef typename XCDFFieldData<T>::ConstIterator ConstIterator;
 
     virtual ~XCDFFieldDataVector() { }
 
@@ -58,30 +61,62 @@ class XCDFFieldDataVector : XCDFFieldData<T> {
 
     virtual void Shrink() {data_.Shrink();}
 
+    virtual void Load(XCDFBlockData& data, bool checkMax) {
+      Clear();
+      for (int i = 0; i < GetExpectedSize(); ++i) {
+        XCDFFieldData<T>::LoadValue(data, checkMax);
+      }
+    }
+    virtual void Dump(XCDFBlockData& data) {
+      for (ConstIterator it = Begin(); it != End(); ++it) {
+        data.AddDatum(XCDFFieldData<T>::CalculateIntegerValue(*it),
+                      XCDFFieldData<T>::GetActiveSize());
+      }
+      Clear();
+    }
+
+    virtual void Stash() {
+      for (ConstIterator it = Begin(); it != End(); ++it) {
+        XCDFFieldData<T>::stash_.push_back(*it);
+      }
+      Clear();
+    }
+    virtual void Unstash() {
+      Clear();
+      for (int i = 0; i < GetExpectedSize(); ++i) {
+        data_.Push(XCDFFieldData<T>::stash_.front());
+        XCDFFieldData<T>::stash_.pop_front();
+      }
+    }
+
     virtual const T& At(unsigned index) const {return data_[index];}
 
-    virtual uint32_t GetSize() const {return data_.Size();}
+    virtual unsigned GetSize() const {return data_.Size();}
+    virtual unsigned GetExpectedSize() const {return parent_->At(0);}
 
     // Would like to use std::vector as data storage container, but
     // we need T* as our iterator.  Use a custom class.
     virtual ConstIterator Begin() const {return data_.Begin();}
     virtual ConstIterator End() const {return data_.End();}
 
+    /// Check if we have a parent
+    virtual bool HasParent() const {return true;}
+
+    /// Get the parent field
+    virtual const XCDFFieldData<uint64_t>* GetParent() const {return parent_;}
+
+    /// Get the parent field name.  Use the empty string to denote no parent.
+    virtual const std::string& GetParentName() const {
+      return parent_->GetName();
+    }
+
   protected:
-
-    // Underlying data
-    SSVector<T> data_;
-
-    /*
-     *  Add a datum to storage
-     */
-    virtual void AddDirect(const T datum) {data_.Push(value);}
 
     /*
      *  Stupidly-simple auto-growing array implementation using
      *  T* as an iterator.
      */
-    template <typename T>
+    template <typename U>
     class SSVector {
 
       public:
@@ -90,7 +125,7 @@ class XCDFFieldDataVector : XCDFFieldData<T> {
           Reallocate(10);
         }
         ~SSVector() {Reallocate(0);}
-        SSVector(const SSVector<T>& v) : begin_(NULL),
+        SSVector(const SSVector<U>& v) : begin_(NULL),
                                          next_(NULL),
                                          last_(NULL) {
           Reallocate(v.Size());
@@ -98,7 +133,7 @@ class XCDFFieldDataVector : XCDFFieldData<T> {
           next_ = begin_ + v.Size();
         }
 
-        SSVector<T>& operator=(SSVector<T> v) {
+        SSVector<U>& operator=(SSVector<U> v) {
           Swap(v);
           return *this;
         }
@@ -106,21 +141,21 @@ class XCDFFieldDataVector : XCDFFieldData<T> {
         void Clear() {next_ = begin_;}
         void Shrink() {Reallocate(Size());}
         unsigned Size() const {return next_ - begin_;}
-        void Swap(SSVector<T>& v) {
+        void Swap(SSVector<U>& v) {
           std::swap(v.begin_, begin_);
           std::swap(v.next_, next_);
         }
-        const T* Begin() const {return begin_;}
-        const T* End() const {return next_;}
-        void Push(const T& t) {
+        const U* Begin() const {return begin_;}
+        const U* End() const {return next_;}
+        void Push(const U& t) {
           if (next_ == last_) {
             // Double our space
             Reallocate((Size() * 2) + 1);
           }
-          next_ = t;
+          *next_ = t;
           ++next_;
         }
-        const T& operator[](unsigned i) const {
+        const U& operator[](unsigned i) const {
           return *(begin_ + i);
         }
 
@@ -128,9 +163,9 @@ class XCDFFieldDataVector : XCDFFieldData<T> {
 
         void Reallocate(unsigned size) {
           unsigned elementCount = std::min(size, Size());
-          T* newBegin = NULL;
+          U* newBegin = NULL;
           if (size > 0) {
-            newBegin = (T*)malloc(size * sizeof(T));
+            newBegin = (U*)malloc(size * sizeof(T));
             if (!newBegin) {
               XCDFFatal("Unable to allocate field memory");
             }
@@ -147,10 +182,22 @@ class XCDFFieldDataVector : XCDFFieldData<T> {
           }
         }
 
-        T* begin_;
-        T* next_;
-        T* last_;
+        U* begin_;
+        U* next_;
+        U* last_;
     };
+
+    // Underlying data
+    SSVector<T> data_;
+
+    /// Parent field
+    const XCDFFieldData<uint64_t>* parent_;
+
+    /*
+     *  Add a datum to storage
+     */
+    virtual void AddDirect(const T datum) {data_.Push(datum);}
+
 };
 
 #endif // XCDF_FIELD_DATA_VECTOR_INCLUDED_H

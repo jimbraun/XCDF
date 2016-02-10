@@ -40,16 +40,18 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 template <typename T>
-class XCDFFieldDataScalar : XCDFFieldData<T> {
+class XCDFFieldDataScalar : public XCDFFieldData<T> {
 
 
   public:
 
-  XCDFFieldDataScalar(const XCDFFieldType type,
-                      const std::string& name,
-                      const T res) : XCDFFieldData(type, name, NULL, res),
-                                     hasData_(0),
-                                     datum_(0) { }
+    XCDFFieldDataScalar(const XCDFFieldType type,
+                        const std::string& name,
+                        const T res) : XCDFFieldData<T>(type, name, res),
+                                       hasData_(0),
+                                       datum_(0) { }
+
+    typedef typename XCDFFieldData<T>::ConstIterator ConstIterator;
 
     virtual ~XCDFFieldDataScalar() { }
 
@@ -57,7 +59,28 @@ class XCDFFieldDataScalar : XCDFFieldData<T> {
 
     virtual void Shrink() { }
 
-    virtual uint32_t GetSize() const {return hasData_;}
+    virtual void Load(XCDFBlockData& data, bool checkMax) {
+      Clear();
+      XCDFFieldData<T>::LoadValue(data, checkMax);
+    }
+    virtual void Dump(XCDFBlockData& data) {
+      data.AddDatum(XCDFFieldData<T>::CalculateIntegerValue(datum_),
+                    XCDFFieldData<T>::GetActiveSize());
+      Clear();
+    }
+
+    virtual void Stash() {
+      XCDFFieldData<T>::stash_.push_back(datum_);
+      Clear();
+    }
+    virtual void Unstash() {
+      Clear();
+      datum_ = XCDFFieldData<T>::stash_.front();
+      XCDFFieldData<T>::stash_.pop_front();
+    }
+
+    virtual unsigned GetSize() const {return hasData_;}
+    virtual unsigned GetExpectedSize() const {return 1;}
 
     /// Iterate over the field
     virtual ConstIterator Begin() const {return &datum_;}
@@ -69,11 +92,11 @@ class XCDFFieldDataScalar : XCDFFieldData<T> {
 
   protected:
 
-    /// Datum
-    T datum_;
-
     /// Use 0 and 1.  This allows avoidance of extra branches.
     unsigned hasData_;
+
+    /// Datum
+    T datum_;
 
     /*
      *  Add a datum to storage

@@ -59,6 +59,8 @@ enum XCDFFieldType {
     XCDF_FLOATING_POINT      = 2
 };
 
+const std::string NO_PARENT = "";
+
 class XCDFException {
 
   public:

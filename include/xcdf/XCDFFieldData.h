@@ -29,71 +29,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <xcdf/XCDFPtr.h>
 #include <xcdf/XCDFDefs.h>
+#include <xcdf/XCDFBlockData.h>
+#include <xcdf/XCDFFieldDataBase.h>
 
 #include <string>
 #include <cmath>
 #include <stdint.h>
-
-namespace {
-  unsigned SIZE_UNSET = 65;
-}
-
-/*!
- * @class XCDFFieldDataBase
- * @author Jim Braun
- * @brief Mostly virtual base class for XCDF data storage/manipulation classes
- */
-class XCDFFieldDataBase {
-
-  public:
-
-    XCDFFieldDataBase(const XCDFFieldType type,
-                      const std::string& name,
-                      XCDFField<uint64_t>* parent) : type_(type),
-                                                     name_(name),
-                                                     parent_(parent) { }
-
-    virtual ~XCDFFieldDataBase() { }
-
-    virtual void AddIntegerRepresentation(uint64_t datum) = 0;
-    virtual void AddIntegerRepresentationAppend(uint64_t datum) = 0;
-    virtual void GetIntegerRepresentation(int index) const = 0;
-    virtual void ZeroAlign() = 0;
-    virtual void SetActiveSize(const uint32_t activeSize) = 0;
-    virtual void AddUnchecked(uint64_t value) = 0;
-    virtual void Clear() = 0;
-    virtual void Shrink() = 0;
-    virtual void Reset() = 0;
-    virtual uint32_t GetActiveSize() const = 0;
-    virtual uint64_t GetResolution() const = 0;
-    virtual uint32_t GetSize() const = 0;
-    virtual uint64_t GetActiveMin() const = 0;
-    virtual void SetActiveMin(uint64_t activeMin) = 0;
-
-    XCDFFieldType GetType() const {return type_;}
-
-    const std::string& GetName() const {return name_;}
-
-    /// Check if we have a parent
-    bool HasParent() const {return parent_ != NULL;}
-
-    /// Get the parent field
-    const XCDFField<uint64_t>& GetParent() const {return *parent_;}
-
-  protected:
-
-    /// Data type stored in the field.
-    XCDFFieldType type_;
-
-    /// Name of the field
-    std::string name_;
-
-    /// Parent or NULL, depending on whether this is a vector field
-    XCDFField<uint64_t>* parent_;
-};
-
-typedef XCDFPtr<XCDFFieldDataBase> XCDFFieldDataBasePtr;
-typedef XCDFPtr<const XCDFFieldDataBase> XCDFFieldDataBaseConstPtr;
+#include <deque>
 
 /*!
  * @class XCDFFieldData
@@ -102,50 +44,26 @@ typedef XCDFPtr<const XCDFFieldDataBase> XCDFFieldDataBaseConstPtr;
  * conversions, and XCDF max/min/size calculations.
  */
 
+namespace {
+  unsigned SIZE_UNSET = 65;
+}
+
 template <typename T>
-class XCDFFieldData : XCDFFieldDataBase {
+class XCDFFieldData : public XCDFFieldDataBase {
 
   public:
 
       XCDFFieldData(const XCDFFieldType type,
                     const std::string& name,
-                    XCDFField<uint64_t>* parent,
-                    const T res) : XCDFFieldDataBase(type, name, parent),
+                    const T res) : XCDFFieldDataBase(type, name),
                                    resolution_(res),
                                    activeMin_(0),
                                    activeMax_(0),
-                                   isSet_(false),
+                                   minSet_(false),
+                                   maxSet_(false),
                                    activeSize_(SIZE_UNSET) { }
 
     virtual ~XCDFFieldData() { }
-
-    /*
-     *  Add a datum to the field as a #resolution units above the active min.
-     *  Do the conversion into the appropriate type.
-     */
-    virtual void AddIntegerRepresentation(uint64_t datum) {
-
-      AddDirect(CalculateTypeValue(datum));
-    }
-
-    /*
-     *  Add a datum to the field as a #resolution units above the active min.
-     *  Do the conversion into the appropriate type.  Need range check in the
-     *  case of file append
-     */
-    virtual void AddIntegerRepresentationAppend(uint64_t datum) {
-
-      AddAppend(CalculateTypeValue(datum));
-    }
-
-    /*
-     *  Get the #resolution units between active min and datum
-     *  at the given index.
-     */
-    virtual uint64_t GetIntegerRepresentation(int index) const {
-
-      return CalculateIntegerValue(At(index));
-    }
 
     /*
      * Align the field active min to be an integer number of resolution
@@ -159,23 +77,27 @@ class XCDFFieldData : XCDFFieldDataBase {
       activeSize_ = activeSize;
     }
 
-    /*
-     * Enter in data of known limits.
-     */
-    virtual void AddUnchecked(uint64_t value) {
-      AddDirect(XCDFSafeTypePun<uint64_t, T>(value));
-    }
+    void Add(const T value) {
 
-    virtual void Add(const T value);
-    virtual void AddAppend(const T value);
+      // Unset the active size when adding new data
+      activeSize_ = SIZE_UNSET;
+
+      // Check the current value against min/max
+      CheckActiveMin(value);
+      CheckActiveMax(value);
+      AddDirect(value);
+    }
 
     virtual void Reset() {
       Clear();
       activeMin_ = 0;
       activeMax_ = 0;
-      isSet_ = false;
+      minSet_ = false;
+      maxSet_ = false;
       activeSize_ = SIZE_UNSET;
     }
+
+    virtual uint64_t GetStashSize() const {return stash_.size();}
 
     /*
      * Get the compressed size of each datum in the field (in bytes)
@@ -197,11 +119,6 @@ class XCDFFieldData : XCDFFieldDataBase {
      */
     virtual uint64_t
     GetResolution() const {return XCDFSafeTypePun<T, uint64_t>(resolution_);}
-
-    /*
-     *  Get the number of entries in the field in the current event
-     */
-    virtual uint32_t GetSize() = 0;
 
     /*
      * Get the minimum value of the field in the current block cast
@@ -234,43 +151,42 @@ class XCDFFieldData : XCDFFieldDataBase {
     T activeMax_;
 
     /// Have we written data to the field?
-    bool isSet_;
+    bool minSet_;
+    bool maxSet_;
 
     /// Number of bits needed for this field in the current block
     mutable uint32_t activeSize_;
 
+    /// Storage for data held in write cache, awaiting max/min limits to be set
+    std::deque<T> stash_;
 
-    void DoAdd(const T value) {
-
-      // Unset the active size when adding new data
-      activeSize_ = SIZE_UNSET;
-
-      if (value < activeMin_ || !isSet_) {
+    void CheckActiveMin(const T value);
+    void CheckActiveMax(const T value);
+    void DoCheckActiveMin(const T value) {
+      if (value < activeMin_ || !minSet_) {
         activeMin_ = value;
       }
+      minSet_ = true;
+    }
 
-      if (value > activeMax_ || !isSet_) {
+    void DoCheckActiveMax(const T value) {
+      if (value > activeMax_ || !maxSet_) {
         activeMax_ = value;
       }
-
-      isSet_ = true;
-      AddUnchecked(value);
+      maxSet_ = true;
     }
 
     /*
-     *  Cannot reset active min or active size during append operations
-     *  while recovering the original data
+     *  Load a value from the XCDFBlockData
      */
-    void DoAddAppend(const T value) {
-
-      if (value > activeMax_ || !isSet_) {
-        activeMax_ = value;
+    void LoadValue(XCDFBlockData& data, bool checkMax) {
+      T value = CalculateTypeValue(data.GetDatum(GetActiveSize()));
+      if (checkMax) {
+        // We only have the active min.  We need to rediscover the max.
+        CheckActiveMax(value);
       }
-
-      isSet_ = true;
-      AddUnchecked(value);
+      AddDirect(value);
     }
-
 
     /*
      *  Add a datum without resetting min/max
@@ -313,13 +229,13 @@ class XCDFFieldData : XCDFFieldDataBase {
 };
 
 template <typename T>
-inline void XCDFFieldData<T>::Add(const T value) {
-  DoAdd(value);
+inline void XCDFFieldData<T>::CheckActiveMin(const T value) {
+  DoCheckActiveMin(value);
 }
 
 template <typename T>
-inline void XCDFFieldData<T>::AddAppend(const T value) {
-  DoAddAppend(value);
+inline void XCDFFieldData<T>::CheckActiveMax(const T value) {
+  DoCheckActiveMax(value);
 }
 
 //////// Specializations for uint64_t type
@@ -437,26 +353,23 @@ inline unsigned XCDFFieldData<double>::CalcActiveSize() const {
 }
 
 template <>
-inline void XCDFFieldData<double>::Add(const double value) {
+inline void XCDFFieldData<double>::CheckActiveMin(const double value) {
+  DoCheckActiveMin(value);
 
   // Need to care for NaNs, since comparison is always false
   if (std::isnan(static_cast<double>(value))) {
     activeMin_ = value;
-    activeMax_ = value;
   }
-
-  DoAdd(value);
 }
 
 template <>
-inline void XCDFFieldData<double>::AddAppend(const double value) {
+inline void XCDFFieldData<double>::CheckActiveMax(const double value) {
+  DoCheckActiveMax(value);
 
   // Need to care for NaNs, since comparison is always false
   if (std::isnan(static_cast<double>(value))) {
     activeMax_ = value;
   }
-
-  DoAddAppend(value);
 }
 
 #endif // XCDF_FIELD_DATA_INCLUDED_H
