@@ -545,7 +545,6 @@ class XCDFFile {
     bool headerWritten_;
     bool isOpen_;
     bool isAppend_;
-    bool checkedReadForAppendFlag_;
     bool recover_;
     std::string currentFileName_;
 

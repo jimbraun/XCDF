@@ -51,7 +51,7 @@ class XCDFFieldDataBase {
 
     virtual ~XCDFFieldDataBase() { }
 
-    virtual void Load(XCDFBlockData& data, bool append=false) = 0;
+    virtual void Load(XCDFBlockData& data) = 0;
     virtual void Dump(XCDFBlockData& data) = 0;
     virtual void Stash() = 0;
     virtual void Unstash() = 0;

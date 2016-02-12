@@ -47,7 +47,6 @@ void XCDFFile::Init() {
   headerWritten_ = false;
   isOpen_ = false;
   isAppend_ = false;
-  checkedReadForAppendFlag_ = false;
   recover_ = false;
 
   currentFileStartOffset_ = 0;
@@ -250,9 +249,7 @@ bool XCDFFile::OpenAppend(const char* fileName) {
 
   // Is the last block full?
   const XCDFBlockEntry& lastEntry = fileTrailer_.GetLastBlockEntry();
-  checkedReadForAppendFlag_ = true;
   Seek(lastEntry.nextEventNumber_);
-  checkedReadForAppendFlag_ = false;
   bool lastBlockFull = blockEventCount_ + 1 >= blockSize_;
 
   // If last block is full, append after the end
@@ -295,7 +292,6 @@ bool XCDFFile::PrepareAppend(const char* fileName,
 
   // Copy data if necessary.  Need checked read to reset the active max.
   // First event is already read.
-  checkedReadForAppendFlag_ = true;
   if (cnt > 0) {
     Write();
     for (unsigned i = 1; i < cnt; ++i) {
@@ -308,7 +304,6 @@ bool XCDFFile::PrepareAppend(const char* fileName,
     // active min/max to be stored
     FieldListForEach(ResetField);
   }
-  checkedReadForAppendFlag_ = false;
 
   eventCount_ = finalEventCount;
   blockEventCount_ = cnt;
@@ -503,7 +498,7 @@ void XCDFFile::ReadEvent() {
   // Read in event from the compressed buffer
   for (FieldList::iterator it = fieldList_.begin();
                            it != fieldList_.end(); ++it) {
-    (*it)->Load(blockData_, checkedReadForAppendFlag_);
+    (*it)->Load(blockData_);
   }
 
   blockEventCount_--;

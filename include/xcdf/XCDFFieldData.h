@@ -183,12 +183,10 @@ class XCDFFieldData : public XCDFFieldDataBase {
     /*
      *  Load a value from the XCDFBlockData
      */
-    T LoadValue(XCDFBlockData& data, bool checkMax) {
+    T LoadValue(XCDFBlockData& data) {
       T value = CalculateTypeValue(data.GetDatum(activeSize_));
-      if (checkMax) {
-        // We only have the active min.  We need to rediscover the max.
-        CheckActiveMax(value);
-      }
+      // We only have the active min.  We need to rediscover the max.
+      CheckActiveMax(value);
       return value;
     }
 

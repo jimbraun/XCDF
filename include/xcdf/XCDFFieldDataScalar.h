@@ -59,9 +59,9 @@ class XCDFFieldDataScalar : public XCDFFieldData<T> {
 
     virtual void Shrink() { }
 
-    virtual void Load(XCDFBlockData& data, bool checkMax) {
+    virtual void Load(XCDFBlockData& data) {
       hasData_ = 1;
-      datum_ = XCDFFieldData<T>::LoadValue(data, checkMax);
+      datum_ = XCDFFieldData<T>::LoadValue(data);
     }
     virtual void Dump(XCDFBlockData& data) {
       data.AddDatum(XCDFFieldData<T>::CalculateIntegerValue(datum_),
