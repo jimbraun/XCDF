@@ -1,6 +1,6 @@
 
 /*
-Copyright (c) 2014, University of Maryland
+Copyright (c) 2016, James Braun
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -24,51 +24,28 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef XCDF_UNCOMPRESSED_BLOCK_INCLUDED_H
-#define XCDF_UNCOMPRESSED_BLOCK_INCLUDED_H
+#ifndef XCDF_FIELD_ROUTINES_INCLUDED_H
+#define XCDF_FIELD_ROUTINES_INCLUDED_H
 
+#include <xcdf/XCDFFieldDataBase.h>
 #include <xcdf/XCDFDefs.h>
 
-#include <deque>
-#include <cassert>
+void ShrinkField(XCDFFieldDataBase& base) {base.Shrink();}
+void ResetField(XCDFFieldDataBase& base) {base.Reset();}
+void ZeroAlignField(XCDFFieldDataBase& base) {base.ZeroAlign();}
+void StashField(XCDFFieldDataBase& base) {base.Stash();}
+void UnstashField(XCDFFieldDataBase& base) {base.Unstash();}
+void CheckFieldContents(XCDFFieldDataBase& base) {
+  if (base.GetSize() > 0) {
+    XCDFWarn("Field \"" << base.GetName() <<
+               "\": Unwritten data added to field");
+  }
+}
+void CheckFieldSize(XCDFFieldDataBase& base) {
+  if (base.GetSize() != base.GetExpectedSize()) {
+    XCDFFatal("Expected " << base.GetExpectedSize() << " entries " <<
+              "in field \"" << base.GetName() << "\", got " << base.GetSize());
+  }
+}
 
-#include <stdint.h>
-
-/*!
- * @class XCDFUncompressedBlock
- * @author Jim Braun
- * @brief Simple FIFO that stores block data until write as type uint64_t
- */
-
-class XCDFUncompressedBlock {
-
-  public:
-
-    XCDFUncompressedBlock() { }
-    ~XCDFUncompressedBlock() { }
-
-    template <typename T>
-    void Add(T datum) {
-      data_.push_back(XCDFSafeTypePun<T, uint64_t>(datum));
-    }
-
-    void Clear() {data_.clear();}
-    uint64_t GetByteCount() const {
-      return data_.size() * XCDF_DATUM_WIDTH_BYTES;
-    }
-
-    template <typename T>
-    T Get() {
-
-      assert(data_.size() > 0);
-      uint64_t temp = data_.front();
-      data_.pop_front();
-      return XCDFSafeTypePun<uint64_t, T>(temp);
-    }
-
-    void Shrink() {std::deque<uint64_t>(data_).swap(data_);}
-
-    std::deque<uint64_t> data_;
-};
-
-#endif // XCDF_UNCOMPRESSED_BLOCK_INCLUDED_H
+#endif // XCDF_FIELD_ROUTINES_INCLUDED_H

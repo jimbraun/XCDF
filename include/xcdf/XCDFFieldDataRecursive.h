@@ -1,6 +1,6 @@
 
 /*
-Copyright (c) 2014, University of Maryland
+Copyright (c) 2016, James Braun
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -24,21 +24,41 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef XCDF_FIELD_HEADER_INCLUDED_H
-#define XCDF_FIELD_HEADER_INCLUDED_H
+#ifndef XCDF_FIELD_DATA_RECURSIVE_INCLUDED_H
+#define XCDF_FIELD_DATA_RECURSIVE_INCLUDED_H
 
-#include <stdint.h>
+#include <xcdf/XCDFFieldDataVector.h>
+#include <xcdf/XCDFDefs.h>
 
-class XCDFFieldHeader {
+/*!
+ * @class XCDFFieldDataRecursive
+ * @author Jim Braun
+ * @brief Recursive field data container suitable for 2D+ vectors.
+ */
+
+template <typename T>
+class XCDFFieldDataRecursive : public XCDFFieldDataVector<T> {
+
 
   public:
 
-    XCDFFieldHeader() : rawActiveMin_(0), activeSize_(0) { }
-    ~XCDFFieldHeader() { }
+    XCDFFieldDataRecursive(const XCDFFieldType type,
+                           const std::string& name,
+                           const T res,
+                           const XCDFFieldData<uint64_t>* parent) :
+                   XCDFFieldDataVector<T>(type, name, res, parent) { }
 
-    uint64_t rawActiveMin_;
-    char activeSize_;
+    virtual ~XCDFFieldDataRecursive() { }
 
+    // Recursion into parent line to identify proper size
+    virtual unsigned GetExpectedSize() const {
+      unsigned expectedSize = 0;
+      unsigned parentSize = XCDFFieldDataVector<T>::parent_->GetSize();
+      for (int i = 0; i < parentSize; ++i) {
+        expectedSize += XCDFFieldDataVector<T>::parent_->At(i);
+      }
+      return expectedSize;
+    }
 };
 
-#endif // XCDF_FIELD_HEADER_INCLUDED_H
+#endif // XCDF_FIELD_DATA_RECURSIVE_INCLUDED_H

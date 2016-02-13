@@ -46,6 +46,12 @@ int main(int argc, char** argv) {
                   f.AllocateUnsignedIntegerField("field6", 1);
   XCDFFloatingPointField field7 =
                   f.AllocateFloatingPointField("field7", 0.);
+  // 2D vector
+  XCDFUnsignedIntegerField field8 =
+                  f.AllocateUnsignedIntegerField("field8", 1, "field2");
+  // 3D vector
+  XCDFFloatingPointField field9 =
+                  f.AllocateFloatingPointField("field9", 0.5, "field8");
 
   field1 << 2;
   field2 << 1 << 1;
@@ -54,6 +60,8 @@ int main(int argc, char** argv) {
   field5 << 5.;
   field6 << 0xDEADBEEFDEADBEEFULL;
   field7 << 0.12;
+  field8 << 2 << 1;
+  field9 << 1. << 2. << 3.;
 
   std::cout << f.Write() << std::endl;
 
@@ -71,6 +79,9 @@ int main(int argc, char** argv) {
 
   field7 << 0.12;
 
+  field8 << 2 << 2 << 1 << 1;
+  field9 << 1. << 2. << 3. << 4. << 5. << 6.;
+
   std::cout << f.Write() << std::endl;
 
   for (int k = 0; k < 1000; k++) {
@@ -81,6 +92,8 @@ int main(int argc, char** argv) {
     field5 << std::numeric_limits<double>::infinity();
     field6 << 0xDEADBEEFDEADBEEFULL;
     field7 << 0.12;
+    field8 << 2 << 2 << 1 << 1;
+    field9 << 1. << 2. << 3. << 4. << 5. << 6.;
     f.Write();
   }
 
@@ -103,6 +116,8 @@ int main(int argc, char** argv) {
   field5 = f.GetFloatingPointField("field5");
   field6 = f.GetUnsignedIntegerField("field6");
   field7 = f.GetFloatingPointField("field7");
+  field8 = f.GetUnsignedIntegerField("field8");
+  field9 = f.GetFloatingPointField("field9");
 
   std::cout << f.Read() << std::endl;
 
@@ -120,6 +135,20 @@ int main(int argc, char** argv) {
   std::cout << std::hex << *field6 << std::endl;
   std::cout << *field7 << std::endl;
 
+  for (XCDFUnsignedIntegerField::ConstIterator it = field8.Begin();
+                                           it != field8.End(); ++it) {
+    std::cout << *it << " ";
+  }
+
+  std::cout << std::endl;
+
+  for (XCDFFloatingPointField::ConstIterator it = field9.Begin();
+                                           it != field9.End(); ++it) {
+    std::cout << *it << " ";
+  }
+
+  std::cout << std::endl;
+
   std::cout << f.Read() << std::endl;
 
   std::cout << *field1 << std::endl;
@@ -135,6 +164,20 @@ int main(int argc, char** argv) {
   std::cout << *field5 << std::endl;
   std::cout << std::hex << *field6 << std::endl;
   std::cout << *field7 << std::endl;
+
+  for (XCDFUnsignedIntegerField::ConstIterator it = field8.Begin();
+                                           it != field8.End(); ++it) {
+    std::cout << *it << " ";
+  }
+
+  std::cout << std::endl;
+
+  for (XCDFFloatingPointField::ConstIterator it = field9.Begin();
+                                           it != field9.End(); ++it) {
+    std::cout << *it << " ";
+  }
+
+  std::cout << std::endl;
 
   for (int k = 0; k < 1000; k++) {
     f.Read();
