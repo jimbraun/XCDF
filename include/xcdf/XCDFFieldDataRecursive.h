@@ -54,7 +54,7 @@ class XCDFFieldDataRecursive : public XCDFFieldDataVector<T> {
     virtual unsigned GetExpectedSize() const {
       unsigned expectedSize = 0;
       unsigned parentSize = XCDFFieldDataVector<T>::parent_->GetSize();
-      for (int i = 0; i < parentSize; ++i) {
+      for (unsigned i = 0; i < parentSize; ++i) {
         expectedSize += XCDFFieldDataVector<T>::parent_->At(i);
       }
       return expectedSize;
