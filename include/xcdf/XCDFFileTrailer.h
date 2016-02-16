@@ -109,7 +109,7 @@ class XCDFFileTrailer {
       }
     }
 
-    bool GetNGlobals() const {return globals_.size();}
+    unsigned GetNGlobals() const {return globals_.size();}
     const XCDFFieldGlobals& GlobalAt(int idx) const {return globals_[idx];}
 
     std::vector<XCDFFieldGlobals>::const_iterator GlobalsBegin() const {
@@ -119,6 +119,8 @@ class XCDFFileTrailer {
     std::vector<XCDFFieldGlobals>::const_iterator GlobalsEnd() const {
       return globals_.end();
     }
+
+    void ClearGlobals() {globals_.clear();}
 
     uint32_t GetNComments() const {return comments_.size();}
 
@@ -155,6 +157,7 @@ class XCDFFileTrailer {
           globals.rawGlobalMin_ = frame.GetUnsigned64();
           globals.totalBytes_ = frame.GetUnsigned64();
           globals.globalsSet_ = frame.GetChar();
+          globals_.push_back(globals);
         }
       }
     }

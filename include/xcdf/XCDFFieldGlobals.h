@@ -1,6 +1,6 @@
 
 /*
-Copyright (c) 2014, University of Maryland
+Copyright (c) 2016, James Braun
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -24,38 +24,25 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef XCDF_FIELD_DESCRIPTOR_INCLUDED_H
-#define XCDF_FIELD_DESCRIPTOR_INCLUDED_H
+#ifndef XCDF_FIELD_GLOBALS_INCLUDED_H
+#define XCDF_FIELD_GLOBALS_INCLUDED_H
 
-#include <string>
 #include <stdint.h>
 
-class XCDFFieldDescriptor {
+class XCDFFieldGlobals {
 
   public:
 
-    XCDFFieldDescriptor() : name_ (""),
-                            type_(0xFF),
-                            rawResolution_(0),
-                            parentName_("") { }
+    XCDFFieldGlobals() : rawGlobalMin_(0),
+                         rawGlobalMax_(0),
+                         totalBytes_(0),
+                         globalsSet_(false) { }
+    ~XCDFFieldGlobals() { }
 
-    ~XCDFFieldDescriptor() { }
-
-    std::string name_;
-    char type_;
-    uint64_t rawResolution_;
-    std::string parentName_;
-
-    bool operator==(const XCDFFieldDescriptor& fd) const {
-      return name_ == fd.name_ &&
-             type_ == fd.type_ &&
-             rawResolution_ == fd.rawResolution_ &&
-             parentName_ == fd.parentName_;
-    }
-
-    bool operator!=(const XCDFFieldDescriptor& fd) const {
-      return !(*this == fd);
-    }
+    uint64_t rawGlobalMin_;
+    uint64_t rawGlobalMax_;
+    uint64_t totalBytes_;
+    bool globalsSet_;
 };
 
-#endif // XCDF_FIELD_DESCRIPTOR_INCLUDED_H
+#endif // XCDF_FIELD_GLOBALS_INCLUDED_H
