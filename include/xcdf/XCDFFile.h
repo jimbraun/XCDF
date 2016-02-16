@@ -304,18 +304,21 @@ class XCDFFile {
 
     std::pair<uint64_t, uint64_t>
     GetUnsignedIntegerFieldRange(const std::string& name) {
+      CheckGlobals();
       return XCDFFieldDataAllocator::GetUnsignedIntegerFieldRange(
                                                **findFieldByName(name, true));
     }
 
     std::pair<int64_t, int64_t>
     GetSignedIntegerFieldRange(const std::string& name) {
+      CheckGlobals();
       return XCDFFieldDataAllocator::GetSignedIntegerFieldRange(
                                                **findFieldByName(name, true));
     }
 
     std::pair<double, double>
     GetFloatingPointFieldRange(const std::string& name) {
+      CheckGlobals();
       return XCDFFieldDataAllocator::GetFloatingPointFieldRange(
                                                **findFieldByName(name, true));
     }

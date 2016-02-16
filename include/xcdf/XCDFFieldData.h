@@ -126,7 +126,12 @@ class XCDFFieldData : public XCDFFieldDataBase {
 
     virtual void Reset() {
       Clear();
-      CalculateGlobals();
+      if (minSet_) {
+        CheckGlobalMin(activeMin_);
+      }
+      if (maxSet_) {
+        CheckGlobalMax(activeMax_);
+      }
       activeMin_ = 0;
       activeMax_ = 0;
       minSet_ = false;
