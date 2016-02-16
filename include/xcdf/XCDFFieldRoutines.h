@@ -36,6 +36,9 @@ void ZeroAlignField(XCDFFieldDataBase& base) {base.ZeroAlign();}
 void StashField(XCDFFieldDataBase& base) {base.Stash();}
 void UnstashField(XCDFFieldDataBase& base) {base.Unstash();}
 void CalculateGlobals(XCDFFieldDataBase& base) {base.CalculateGlobals();}
+void ClearFieldBitsProcessed(XCDFFieldDataBase& base) {
+  base.ClearBitsProcessed();
+}
 void CheckFieldContents(XCDFFieldDataBase& base) {
   if (base.GetSize() > 0) {
     XCDFWarn("Field \"" << base.GetName() <<

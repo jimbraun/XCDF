@@ -1101,14 +1101,17 @@ void XCDFFile::CheckGlobals() {
   uint64_t currentEventCount = eventCount_;
   // Rewind if we can seek.  This possibly means reading the file twice
   // for version < 3.
-  Rewind();
+  bool seekSuccess = Rewind();
+  if (seekSuccess) {
+    // we need to reset field byte counts
+    FieldListForEach(ClearFieldBitsProcessed);
+  }
   // Read all the remaining data
   while (Read());
   // Calculate the globals
   FieldListForEach(CalculateGlobals);
   haveV3Globals_ = true;
   // Return file to original position if possible
-  bool seekSuccess;
   if (currentEventCount == 0) {
     seekSuccess = Rewind();
   } else {
