@@ -47,11 +47,15 @@ void Info(std::vector<std::string>& infiles) {
 
   std::cout << std::setw(maxNameWidth) << "Field" << std::setw(17) <<
              "Type" << " " << std::setw(11) << "Resolution" <<
-                 std::setw(maxParentWidth) << "Parent" << std::endl;
+                 std::setw(maxParentWidth) << "Parent" << " " <<
+                 std::setw(10) << "Bytes" << " " << std::setw(10) <<
+                 "Min" << " " << std::setw(10) << "Max" << std::endl;
 
   std::cout << std::setw(maxNameWidth) << "-----" << std::setw(17) <<
                "----" << " " << std::setw(11) << "----------" <<
-                   std::setw(maxParentWidth) << "------" << std::endl;
+                   std::setw(maxParentWidth) << "------" << " " <<
+                   std::setw(10) << "----" << " " << std::setw(10) <<
+                   "---" << " " << std::setw(10) << "---" << std::endl;
 
   for (std::vector<XCDFFieldDescriptor>::const_iterator
                          it = f.FieldDescriptorsBegin();
@@ -78,7 +82,27 @@ void Info(std::vector<std::string>& infiles) {
 
     }
 
-    std::cout << std::setw(maxParentWidth) << it->parentName_ << std::endl;
+    std::cout << std::setw(maxParentWidth) << it->parentName_ << " " <<
+        std::setw(10) << f.GetFieldBytes(it->name_) << " " << std::setw(10);
+
+    switch (it->type_) {
+
+      case XCDF_UNSIGNED_INTEGER:
+        std::cout << f.GetUnsignedIntegerFieldRange(it->name_).first << " " <<
+            std::setw(10) << f.GetUnsignedIntegerFieldRange(it->name_).second;
+        break;
+      case XCDF_SIGNED_INTEGER:
+        std::cout << f.GetSignedIntegerFieldRange(it->name_).first << " " <<
+            std::setw(10) << f.GetSignedIntegerFieldRange(it->name_).second;
+        break;
+      case XCDF_FLOATING_POINT:
+        std::cout << f.GetFloatingPointFieldRange(it->name_).first << " " <<
+            std::setw(10) << f.GetFloatingPointFieldRange(it->name_).second;
+        break;
+
+    }
+
+    std::cout << std::endl;
   }
 
   std::cout << std::endl << "Entries: " << f.GetEventCount() << std::endl;

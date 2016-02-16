@@ -297,6 +297,29 @@ class XCDFFile {
     std::vector<XCDFFieldDescriptor>::const_iterator
     FieldDescriptorsEnd() const {return fileHeader_.FieldDescriptorsEnd();}
 
+    uint64_t GetFieldBytes(const std::string& name) {
+      CheckGlobals();
+      return (*findFieldByName(name, true))->GetTotalBytes();
+    }
+
+    std::pair<uint64_t, uint64_t>
+    GetUnsignedIntegerFieldRange(const std::string& name) {
+      return XCDFFieldDataAllocator::GetUnsignedIntegerFieldRange(
+                                               **findFieldByName(name, true));
+    }
+
+    std::pair<int64_t, int64_t>
+    GetSignedIntegerFieldRange(const std::string& name) {
+      return XCDFFieldDataAllocator::GetSignedIntegerFieldRange(
+                                               **findFieldByName(name, true));
+    }
+
+    std::pair<double, double>
+    GetFloatingPointFieldRange(const std::string& name) {
+      return XCDFFieldDataAllocator::GetFloatingPointFieldRange(
+                                               **findFieldByName(name, true));
+    }
+
 
     /// Set the maximum number of events contained in a block
     void SetBlockSize(const uint64_t blockSize) {blockSize_ = blockSize;}
@@ -548,6 +571,10 @@ class XCDFFile {
     bool recover_;
     std::string currentFileName_;
 
+    // State of field global data
+    bool unusableGlobalsFromFile_;
+    bool haveV3Globals_;
+
     // I/O frame.  Allocate only one copy for efficiency.
     XCDFFrame currentFrame_;
     std::streampos currentFileStartOffset_;
@@ -576,6 +603,8 @@ class XCDFFile {
     void LoadFileHeader(XCDFFileHeader& header);
     void LoadFileTrailer(XCDFFileTrailer& trailer);
     void CopyTrailer(const XCDFFileTrailer& trailer);
+    void SetGlobals(const XCDFFileTrailer& trailer);
+    void CheckGlobals();
     bool NextFrameExists();
     bool OpenAppend(const char* filename);
     bool PrepareAppend(const char* filename,

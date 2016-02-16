@@ -221,6 +221,27 @@ GetFloatingPointField(const XCDFFieldDataBase& base) {
   return CheckedGetField<double>(base);
 }
 
+inline
+std::pair<uint64_t, uint64_t>
+GetUnsignedIntegerFieldRange(const XCDFFieldDataBase& base) {
+  CheckConvertible<uint64_t>(base);
+  return static_cast<const XCDFFieldData<uint64_t>* >(&base)->GetGlobalRange();
+}
+
+inline
+std::pair<int64_t, int64_t>
+GetSignedIntegerFieldRange(const XCDFFieldDataBase& base) {
+  CheckConvertible<int64_t>(base);
+  return static_cast<const XCDFFieldData<int64_t>* >(&base)->GetGlobalRange();
+}
+
+inline
+std::pair<double, double>
+GetFloatingPointFieldRange(const XCDFFieldDataBase& base) {
+  CheckConvertible<double>(base);
+  return static_cast<const XCDFFieldData<double>* >(&base)->GetGlobalRange();
+}
+
 }
 
 #endif // XCDF_FIELD_DATA_ALLOCATOR_INCLUDED_H

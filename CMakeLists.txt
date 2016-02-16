@@ -75,7 +75,6 @@ IF (PYTHONLIBS_FOUND)
 ENDIF ()
 
 XCDF_ADD_EXECUTABLE (TARGET seek-test SOURCES tests/SeekTest.cc)
-XCDF_ADD_EXECUTABLE (TARGET concat-seek-test SOURCES tests/ConcatSeekTest.cc)
 XCDF_ADD_EXECUTABLE (TARGET random-test SOURCES tests/RandomTest.cc)
 XCDF_ADD_EXECUTABLE (TARGET speed-test SOURCES tests/SpeedTest.cc)
 XCDF_ADD_EXECUTABLE (TARGET simple-test SOURCES tests/SimpleTest.cc)

@@ -48,6 +48,8 @@ void XCDFFile::Init() {
   isOpen_ = false;
   isAppend_ = false;
   recover_ = false;
+  unusableGlobalsFromFile_ = false;
+  haveV3Globals_ = false;
 
   currentFileStartOffset_ = 0;
   currentFrameStartOffset_ = 0;
@@ -87,7 +89,17 @@ void XCDFFile::Close() {
     uint64_t currentPos = static_cast<uint64_t>(ostream.tellp());
     fileHeader_.SetFileTrailerPtr(currentPos);
 
-    // Write out block table
+    // Add the globals and event count to the trailer and write it
+    FieldListForEach(CalculateGlobals);
+    XCDFFieldGlobals globals;
+    for (FieldList::iterator it = fieldList_.begin();
+                             it != fieldList_.end(); ++it) {
+      globals.globalsSet_ = (*it)->GlobalsSet();
+      globals.rawGlobalMax_ = (*it)->GetRawGlobalMax();
+      globals.rawGlobalMin_ = (*it)->GetRawGlobalMin();
+      globals.totalBytes_ = (*it)->GetTotalBytes();
+      fileTrailer_.AddGlobals(globals);
+    }
     fileTrailer_.SetTotalEventCount(eventCount_);
     fileTrailer_.PackFrame(currentFrame_);
     WriteFrame();
@@ -528,6 +540,9 @@ bool XCDFFile::ReadNextBlock() {
       XCDFFatal("File corrupt: Unexpected number of block headers");
     }
 
+    // Reset each field
+    FieldListForEach(ResetField);
+
     // Update field sizes for the block.
     uint32_t i = 0;
     for (std::vector<XCDFFieldHeader>::const_iterator
@@ -568,7 +583,7 @@ bool XCDFFile::ReadNextBlock() {
     // Load the trailer if not already loaded
     if (!blockTableComplete_) {
       XCDFFileTrailer tempTrailer;
-      tempTrailer.UnpackFrame(currentFrame_);
+      tempTrailer.UnpackFrame(currentFrame_, fileHeader_.GetVersion());
       CopyTrailer(tempTrailer);
     }
 
@@ -597,6 +612,11 @@ bool XCDFFile::ReadNextBlock() {
         // Set the event count.  This is a hack in the case of empty trailers
         fileTrailer_.SetTotalEventCount(eventCount_ + 1);
         blockTableComplete_ = true;
+
+        // We've read all the trailers.  If we have complete globals, mark it.
+        if (!unusableGlobalsFromFile_) {
+          haveV3Globals_ = true;
+        }
       }
 
       return false;
@@ -764,6 +784,10 @@ void XCDFFile::ReadFileHeaders() {
     }
   }
 
+  if (blockTableComplete_ && !unusableGlobalsFromFile_) {
+    haveV3Globals_ = true;
+  }
+
   // Return to the first block in the file --
   // should do nothing if we can't seek.  Frame offset pointers
   // may point to a different frame later in the file, but this
@@ -789,8 +813,34 @@ void XCDFFile::LoadFileTrailer(XCDFFileTrailer& trailer) {
     XCDFFatal("File trailer not found.  File corrupt.");
   }
 
-  trailer.UnpackFrame(currentFrame_);
+  trailer.UnpackFrame(currentFrame_, fileHeader_.GetVersion());
   blockTableComplete_ = true;
+}
+
+void XCDFFile::SetGlobals(const XCDFFileTrailer& trailer) {
+  printf("SET GLOBALS\n");
+  // Set field globals from the trailer data
+  if (trailer.GetNGlobals() != fieldList_.size()) {
+    // We can't use globals from file.  We must recalculate.
+    unusableGlobalsFromFile_ = true;
+    return;
+  }
+
+  uint32_t i = 0;
+  for (std::vector<XCDFFieldGlobals>::const_iterator
+                    it = trailer.GlobalsBegin();
+                    it != trailer.GlobalsEnd(); ++it) {
+
+    /// These will be checked so we don't accidentally set
+    /// the globals to less-extreme values.
+    if (it->globalsSet_) {
+      fieldList_[i]->SetRawGlobalMin(it->rawGlobalMin_);
+      fieldList_[i]->SetRawGlobalMax(it->rawGlobalMax_);
+      fieldList_[i]->SetTotalBytes(
+                      fieldList_[i]->GetTotalBytes() + it->totalBytes_);
+    }
+    i++;
+  }
 }
 
 void XCDFFile::CopyTrailer(const XCDFFileTrailer& trailer) {
@@ -819,6 +869,9 @@ void XCDFFile::CopyTrailer(const XCDFFileTrailer& trailer) {
 
     fileTrailer_.AddComment(*it);
   }
+
+  // Copy the global data, if present
+  SetGlobals(fileTrailer_);
 }
 
 /*
@@ -1027,6 +1080,51 @@ uint64_t XCDFFile::GetEventCount() {
   }
 
   return totalEventCount;
+}
+
+void XCDFFile::CheckGlobals() { /*
+  // Ensure we've read in global data.  If not, get it.
+  printf("AA\n");
+  // We have global data we've completely read the globals
+  if (haveV3Globals_) {
+    return;
+  }
+
+  // If we're writing, we have the data, but we need to calculate the globals
+  if (IsWritable()) {
+    FieldListForEach(CalculateGlobals);
+    return;
+  }
+
+  printf("CC\n");
+
+  // We're reading but don't have the globals yet.  The only way to get them
+  // is to read every event.
+  uint64_t currentEventCount = eventCount_;
+  // Rewind if we can seek.  This possibly means reading the file twice
+  // for version < 3.
+  Rewind();
+  printf("DD\n");
+  // Read all the remaining data
+  while (Read());
+  // Calculate the globals
+  FieldListForEach(CalculateGlobals);
+  printf("EEE\n");
+  // Return file to original position if possible
+  bool seekSuccess;
+  if (currentEventCount == 0) {
+    seekSuccess = Rewind();
+  } else {
+    seekSuccess = Seek(currentEventCount - 1);
+  }
+
+  printf("FF\n");
+
+  if (!seekSuccess) {
+    // Unable to return to previous state
+    eventCount_ = GetEventCount() + 1;
+    blockEventCount_ = 0;
+  } */
 }
 
 bool operator<(const XCDFFieldType& type, const XCDFFieldDataBasePtr& ptr) {

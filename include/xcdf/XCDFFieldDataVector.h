@@ -70,8 +70,7 @@ class XCDFFieldDataVector : public XCDFFieldData<T> {
     }
     virtual void Dump(XCDFBlockData& data) {
       for (ConstIterator it = Begin(); it != End(); ++it) {
-        data.AddDatum(XCDFFieldData<T>::CalculateIntegerValue(*it),
-                      XCDFFieldData<T>::GetActiveSize());
+        XCDFFieldData<T>::DumpValue(data, *it);
       }
       data_.Clear();
     }
