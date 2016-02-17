@@ -665,6 +665,14 @@ void CreateHistogram(std::vector<std::string>& infiles,
       std::cerr << "Invalid histogram args: " << exp << std::endl;
       return;
     }
+    if (nbins == 0) {
+      std::cerr << "Number of bins must be greater than zero" << std::endl;
+      return;
+    }
+    if (min > max) {
+      std::cerr << "Histogram range min must be less than max" << std::endl;
+      return;
+    }
     expr = args[3];
     if (args.size() == 5) {
       weightExpr = args[4];
@@ -682,10 +690,9 @@ void CreateHistogram(std::vector<std::string>& infiles,
     CheckRange(infiles, rc);
     min = rc.GetMin();
     max = rc.GetMax();
-  }
 
-  if (min >= max) {
-    max += 1;
+    // Increase max by 1 bin to avoid cutting off upper value
+    max = max + (max - min) / nbins;
   }
 
   Histogram1D h(nbins, min, max);
@@ -746,6 +753,14 @@ void CreateHistogram2D(std::vector<std::string>& infiles,
       std::cerr << "Invalid histogram args: " << exp << std::endl;
       return;
     }
+    if (nbinsX == 0 || nbinsY == 0) {
+      std::cerr << "Number of bins must be greater than zero" << std::endl;
+      return;
+    }
+    if (minX > maxX || minY > maxY) {
+      std::cerr << "Histogram range min must be less than max" << std::endl;
+      return;
+    }
   } else {
     exprX = args[1];
     fail |= Extract(args[2], nbinsY);
@@ -757,6 +772,10 @@ void CreateHistogram2D(std::vector<std::string>& infiles,
       std::cerr << "Invalid histogram args: " << exp << std::endl;
       return;
     }
+    if (nbinsX == 0 || nbinsY == 0) {
+      std::cerr << "Number of bins must be greater than zero" << std::endl;
+      return;
+    }
     std::vector<std::string> exprs;
     exprs.push_back(exprX);
     exprs.push_back(exprY);
@@ -766,6 +785,10 @@ void CreateHistogram2D(std::vector<std::string>& infiles,
     maxX = rc.GetMax(0);
     minY = rc.GetMin(1);
     maxY = rc.GetMax(1);
+
+    // Increase max by 1 bin to avoid cutting off upper value
+    maxX = maxX + (maxX - minX) / nbinsX;
+    maxY = maxY + (maxY - minY) / nbinsY;
   }
 
   Histogram2D h(nbinsX, minX, maxX, nbinsY, minY, maxY);

@@ -429,11 +429,12 @@ class RangeChecker {
 
       while (f.Read()) {
         for (unsigned i = 0; i < exprs_.size(); ++i) {
-          if (nes[i].GetSize() == 1) {
+          unsigned max = nes[i].GetSize();
+          if (max == 1) {
             rts_[i].Fill(nes[i].Evaluate());
           } else {
-            for (unsigned i = 0; i < nes[i].GetSize(); ++i) {
-              rts_[i].Fill(nes[i].Evaluate(i));
+            for (unsigned j = 0; j < max; ++j) {
+              rts_[i].Fill(nes[i].Evaluate(j));
             }
           }
         }
