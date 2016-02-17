@@ -621,6 +621,17 @@ bool Extract(std::string& s, T& out) {
   return ss.fail();
 }
 
+void FixBins(double& min, double& max, const unsigned nbins) {
+
+  // If all the same value, we still need max to be larger than min
+  if (max < min*(1+1e-15)) {
+    max = min + 1;
+  } else {
+    // Increase max by 1 bin to avoid cutting off upper value
+    max = max + (max - min) / nbins;
+  }
+}
+
 void CreateHistogram(std::vector<std::string>& infiles,
                      std::string& exp) {
 
@@ -691,8 +702,7 @@ void CreateHistogram(std::vector<std::string>& infiles,
     min = rc.GetMin();
     max = rc.GetMax();
 
-    // Increase max by 1 bin to avoid cutting off upper value
-    max = max + (max - min) / nbins;
+    FixBins(min, max, nbins);
   }
 
   Histogram1D h(nbins, min, max);
@@ -786,9 +796,8 @@ void CreateHistogram2D(std::vector<std::string>& infiles,
     minY = rc.GetMin(1);
     maxY = rc.GetMax(1);
 
-    // Increase max by 1 bin to avoid cutting off upper value
-    maxX = maxX + (maxX - minX) / nbinsX;
-    maxY = maxY + (maxY - minY) / nbinsY;
+    FixBins(minX, maxX, nbinsX);
+    FixBins(minY, maxY, nbinsY);
   }
 
   Histogram2D h(nbinsX, minX, maxX, nbinsY, minY, maxY);
