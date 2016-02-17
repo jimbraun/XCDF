@@ -64,7 +64,7 @@ class XCDFFieldDataVector : public XCDFFieldData<T> {
     virtual void Load(XCDFBlockData& data) {
       data_.Clear();
       unsigned cnt = GetExpectedSize();
-      for (int i = 0; i < cnt; ++i) {
+      for (unsigned i = 0; i < cnt; ++i) {
         data_.Push(XCDFFieldData<T>::LoadValue(data));
       }
     }
@@ -84,7 +84,7 @@ class XCDFFieldDataVector : public XCDFFieldData<T> {
     virtual void Unstash() {
       data_.Clear();
       unsigned cnt = GetExpectedSize();
-      for (int i = 0; i < cnt; ++i) {
+      for (unsigned i = 0; i < cnt; ++i) {
         data_.Push(XCDFFieldData<T>::stash_.front());
         XCDFFieldData<T>::stash_.pop_front();
       }
