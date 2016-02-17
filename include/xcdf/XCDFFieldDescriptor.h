@@ -34,7 +34,11 @@ class XCDFFieldDescriptor {
 
   public:
 
-    XCDFFieldDescriptor() { }
+    XCDFFieldDescriptor() : name_ (""),
+                            type_(0xFF),
+                            rawResolution_(0),
+                            parentName_("") { }
+
     ~XCDFFieldDescriptor() { }
 
     std::string name_;

@@ -28,6 +28,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define XCDF_FILE_TRAILER_INCLUDED_H
 
 #include <xcdf/XCDFBlockEntry.h>
+#include <xcdf/XCDFFieldGlobals.h>
 #include <xcdf/XCDFDefs.h>
 
 #include <vector>
@@ -39,7 +40,8 @@ class XCDFFileTrailer {
 
   public:
 
-    XCDFFileTrailer() : blockTableEnabled_(true) { }
+    XCDFFileTrailer() : totalEventCount_(0),
+                        blockTableEnabled_(true) { }
     ~XCDFFileTrailer() { }
 
     void SetTotalEventCount(const uint64_t totalEventCount) {
@@ -51,6 +53,7 @@ class XCDFFileTrailer {
     void Clear() {
       blockEntries_.clear();
       comments_.clear();
+      globals_.clear();
     }
 
     bool IsBlockTableEnabled() {return blockTableEnabled_;}
@@ -100,9 +103,28 @@ class XCDFFileTrailer {
       return comments_.end();
     }
 
+    void AddGlobals(const XCDFFieldGlobals& globals) {
+      if (blockTableEnabled_) {
+        globals_.push_back(globals);
+      }
+    }
+
+    unsigned GetNGlobals() const {return globals_.size();}
+    const XCDFFieldGlobals& GlobalAt(int idx) const {return globals_[idx];}
+
+    std::vector<XCDFFieldGlobals>::const_iterator GlobalsBegin() const {
+      return globals_.begin();
+    }
+
+    std::vector<XCDFFieldGlobals>::const_iterator GlobalsEnd() const {
+      return globals_.end();
+    }
+
+    void ClearGlobals() {globals_.clear();}
+
     uint32_t GetNComments() const {return comments_.size();}
 
-    void UnpackFrame(XCDFFrame& frame) {
+    void UnpackFrame(XCDFFrame& frame, unsigned version) {
 
       Clear();
 
@@ -125,6 +147,18 @@ class XCDFFileTrailer {
       for (unsigned i = 0; i < nComments; ++i) {
         comment = frame.GetString();
         comments_.push_back(comment);
+      }
+
+      if (version > 2) {
+        uint32_t nGlobals = frame.GetUnsigned32();
+        XCDFFieldGlobals globals;
+        for (unsigned i = 0; i < nGlobals; ++i) {
+          globals.rawGlobalMax_ = frame.GetUnsigned64();
+          globals.rawGlobalMin_ = frame.GetUnsigned64();
+          globals.totalBytes_ = frame.GetUnsigned64();
+          globals.globalsSet_ = frame.GetChar();
+          globals_.push_back(globals);
+        }
       }
     }
 
@@ -149,6 +183,16 @@ class XCDFFileTrailer {
                                  it != comments_.end(); ++it) {
         frame.PutString(*it);
       }
+      frame.PutUnsigned32(globals_.size());
+      for (std::vector<XCDFFieldGlobals>::const_iterator
+                          it = globals_.begin();
+                          it != globals_.end(); ++it) {
+
+        frame.PutUnsigned64(it->rawGlobalMax_);
+        frame.PutUnsigned64(it->rawGlobalMin_);
+        frame.PutUnsigned64(it->totalBytes_);
+        frame.PutChar(it->globalsSet_);
+      }
     }
 
   private:
@@ -156,6 +200,7 @@ class XCDFFileTrailer {
     uint64_t totalEventCount_;
     std::vector<XCDFBlockEntry> blockEntries_;
     std::vector<std::string> comments_;
+    std::vector<XCDFFieldGlobals> globals_;
 
     bool blockTableEnabled_;
 };

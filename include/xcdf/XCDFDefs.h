@@ -33,7 +33,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <cstring>
 #include <stdint.h>
 
-#define XCDF_VERSION 2
+#define XCDF_VERSION 3
 
 #define XCDF_DATUM_WIDTH_BYTES 8
 #define XCDF_DATUM_WIDTH_BITS  64

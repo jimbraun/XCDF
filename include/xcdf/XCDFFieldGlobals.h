@@ -24,32 +24,25 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef XCDF_FIELD_ROUTINES_INCLUDED_H
-#define XCDF_FIELD_ROUTINES_INCLUDED_H
+#ifndef XCDF_FIELD_GLOBALS_INCLUDED_H
+#define XCDF_FIELD_GLOBALS_INCLUDED_H
 
-#include <xcdf/XCDFFieldDataBase.h>
-#include <xcdf/XCDFDefs.h>
+#include <stdint.h>
 
-void ShrinkField(XCDFFieldDataBase& base) {base.Shrink();}
-void ResetField(XCDFFieldDataBase& base) {base.Reset();}
-void ZeroAlignField(XCDFFieldDataBase& base) {base.ZeroAlign();}
-void StashField(XCDFFieldDataBase& base) {base.Stash();}
-void UnstashField(XCDFFieldDataBase& base) {base.Unstash();}
-void CalculateGlobals(XCDFFieldDataBase& base) {base.CalculateGlobals();}
-void ClearFieldBitsProcessed(XCDFFieldDataBase& base) {
-  base.ClearBitsProcessed();
-}
-void CheckFieldContents(XCDFFieldDataBase& base) {
-  if (base.GetSize() > 0) {
-    XCDFWarn("Field \"" << base.GetName() <<
-               "\": Unwritten data added to field");
-  }
-}
-void CheckFieldSize(XCDFFieldDataBase& base) {
-  if (base.GetSize() != base.GetExpectedSize()) {
-    XCDFFatal("Expected " << base.GetExpectedSize() << " entries " <<
-              "in field \"" << base.GetName() << "\", got " << base.GetSize());
-  }
-}
+class XCDFFieldGlobals {
 
-#endif // XCDF_FIELD_ROUTINES_INCLUDED_H
+  public:
+
+    XCDFFieldGlobals() : rawGlobalMin_(0),
+                         rawGlobalMax_(0),
+                         totalBytes_(0),
+                         globalsSet_(false) { }
+    ~XCDFFieldGlobals() { }
+
+    uint64_t rawGlobalMin_;
+    uint64_t rawGlobalMax_;
+    uint64_t totalBytes_;
+    bool globalsSet_;
+};
+
+#endif // XCDF_FIELD_GLOBALS_INCLUDED_H

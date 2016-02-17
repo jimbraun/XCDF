@@ -33,6 +33,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 #include <string>
 #include <cassert>
+#include <algorithm>
+
+/// Place descriptors in type order
+bool operator<(const XCDFFieldDescriptor& d1, const XCDFFieldDescriptor& d2) {
+  return d1.type_ < d2.type_;
+}
 
 class XCDFFileHeader {
 
@@ -52,8 +58,11 @@ class XCDFFileHeader {
 
     void Clear() {fieldDescriptors_.clear();}
 
+    /// Place descriptors in type order
     void AddFieldDescriptor(const XCDFFieldDescriptor& d) {
-      fieldDescriptors_.push_back(d);
+      fieldDescriptors_.insert(
+                    std::upper_bound(fieldDescriptors_.begin(),
+                                     fieldDescriptors_.end(), d), d);
     }
 
     std::vector<XCDFFieldDescriptor>::const_iterator

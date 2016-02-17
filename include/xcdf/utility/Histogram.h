@@ -394,6 +394,34 @@ class RangeChecker {
 
     void Fill(XCDFFile& f) {
 
+      // First, check if all expressions are fields in the file.
+      // If so, we can just get the range directly
+      bool allFields = true;
+      for (unsigned i = 0; i < exprs_.size(); ++i) {
+        if (!f.HasField(exprs_[i])) {
+          allFields = false;
+          break;
+        }
+      }
+
+      if (allFields) {
+        for (unsigned i = 0; i < exprs_.size(); ++i) {
+          if (f.IsUnsignedIntegerField(exprs_[i])) {
+            rts_[i].Fill(f.GetUnsignedIntegerFieldRange(exprs_[i]).first);
+            rts_[i].Fill(f.GetUnsignedIntegerFieldRange(exprs_[i]).second);
+          } else if (f.IsSignedIntegerField(exprs_[i])) {
+            rts_[i].Fill(f.GetSignedIntegerFieldRange(exprs_[i]).first);
+            rts_[i].Fill(f.GetSignedIntegerFieldRange(exprs_[i]).second);
+          } else {
+            rts_[i].Fill(f.GetFloatingPointFieldRange(exprs_[i]).first);
+            rts_[i].Fill(f.GetFloatingPointFieldRange(exprs_[i]).second);
+          }
+        }
+        return;
+      }
+
+      // OK, at least one supplied expression is more than just a
+      // field name, so we have to read the file to get the range
       std::vector<NumericalExpression<double> > nes;
       for (unsigned i = 0; i < exprs_.size(); ++i) {
         nes.push_back(NumericalExpression<double>(exprs_[i], f));
@@ -401,11 +429,12 @@ class RangeChecker {
 
       while (f.Read()) {
         for (unsigned i = 0; i < exprs_.size(); ++i) {
-          if (nes[i].GetSize() == 1) {
+          unsigned max = nes[i].GetSize();
+          if (max == 1) {
             rts_[i].Fill(nes[i].Evaluate());
           } else {
-            for (unsigned i = 0; i < nes[i].GetSize(); ++i) {
-              rts_[i].Fill(nes[i].Evaluate(i));
+            for (unsigned j = 0; j < max; ++j) {
+              rts_[i].Fill(nes[i].Evaluate(j));
             }
           }
         }

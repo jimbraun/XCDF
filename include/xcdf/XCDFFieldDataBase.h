@@ -51,7 +51,7 @@ class XCDFFieldDataBase {
 
     virtual ~XCDFFieldDataBase() { }
 
-    virtual void Load(XCDFBlockData& data, bool append=false) = 0;
+    virtual void Load(XCDFBlockData& data) = 0;
     virtual void Dump(XCDFBlockData& data) = 0;
     virtual void Stash() = 0;
     virtual void Unstash() = 0;
@@ -67,6 +67,15 @@ class XCDFFieldDataBase {
     virtual unsigned GetExpectedSize() const = 0;
     virtual uint64_t GetRawActiveMin() const = 0;
     virtual void SetRawActiveMin(uint64_t rawActiveMin) = 0;
+    virtual uint64_t GetRawGlobalMin() const = 0;
+    virtual uint64_t GetRawGlobalMax() const = 0;
+    virtual uint64_t GetTotalBytes() const = 0;
+    virtual void SetRawGlobalMin(uint64_t rawGlobalMin) = 0;
+    virtual void SetRawGlobalMax(uint64_t rawGlobalMax) = 0;
+    virtual void SetTotalBytes(uint64_t totalBytes) = 0;
+    virtual void ClearBitsProcessed() = 0;
+    virtual void CalculateGlobals() = 0;
+    virtual bool GlobalsSet() const = 0;
 
     XCDFFieldType GetType() const {return type_;}
 

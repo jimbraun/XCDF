@@ -36,6 +36,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <cmath>
 #include <stdint.h>
 #include <deque>
+#include <functional>
 
 /*!
  * @class XCDFFieldData
@@ -46,6 +47,35 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace {
   unsigned SIZE_UNSET = 65;
+
+  /*
+   *  Check a type against a target and a flag.  If the value compares
+   *  true to the target according to the supplied operator or the flag
+   *  is not set, set the target to the value and set the flag.
+   */
+  template <typename T, typename Operator>
+  void DoCheck(const T value, T& target, bool& setFlag, Operator op) {
+    if (op(value, target) || !setFlag) {
+      target = value;
+    }
+    setFlag = true;
+  }
+
+  /*
+   *  Partial specialization of DoCheck for type double.
+   *  Need to check for NaNs explicitly, as they always compare false.
+   */
+  template <typename Operator>
+  void DoCheck(const double value, double& target, bool& setFlag, Operator op) {
+    if (op(value, target) || !setFlag) {
+      target = value;
+    }
+    setFlag = true;
+
+    if (std::isnan(value)) {
+      target = value;
+    }
+  }
 }
 
 template <typename T>
@@ -59,9 +89,15 @@ class XCDFFieldData : public XCDFFieldDataBase {
                                    resolution_(res),
                                    activeMin_(0),
                                    activeMax_(0),
+                                   globalMin_(0),
+                                   globalMax_(0),
                                    minSet_(false),
                                    maxSet_(false),
-                                   activeSize_(SIZE_UNSET) { }
+                                   globalMinSet_(false),
+                                   globalMaxSet_(false),
+                                   activeSize_(SIZE_UNSET),
+                                   totalBytes_(0),
+                                   bitsProcessed_(0) { }
 
     virtual ~XCDFFieldData() { }
 
@@ -90,12 +126,33 @@ class XCDFFieldData : public XCDFFieldDataBase {
 
     virtual void Reset() {
       Clear();
+      if (minSet_) {
+        CheckGlobalMin(activeMin_);
+      }
+      if (maxSet_) {
+        CheckGlobalMax(activeMax_);
+      }
       activeMin_ = 0;
       activeMax_ = 0;
       minSet_ = false;
       maxSet_ = false;
       activeSize_ = SIZE_UNSET;
     }
+
+    virtual void CalculateGlobals() {
+      if (minSet_) {
+        CheckGlobalMin(activeMin_);
+      }
+      if (maxSet_) {
+        CheckGlobalMax(activeMax_);
+      }
+      totalBytes_ = bitsProcessed_ >> 3;
+    }
+
+    virtual bool GlobalsSet() const {return globalMinSet_ && globalMaxSet_;}
+
+    virtual void ClearBitsProcessed() {bitsProcessed_ = 0;}
+    virtual uint64_t GetBitsProcessed() const {return bitsProcessed_;}
 
     virtual uint64_t GetStashSize() const {return stash_.size();}
 
@@ -136,6 +193,66 @@ class XCDFFieldData : public XCDFFieldDataBase {
       minSet_ = true;
     }
 
+    /*
+     *  Get the global range of the field
+     */
+    std::pair<T, T> GetGlobalRange() const {
+      return std::pair<T, T>(globalMin_, globalMax_);
+    }
+
+    /*
+     * Get the minimum value seen by the field
+     */
+    virtual T
+    GetGlobalMin() const {return globalMin_;}
+
+    /*
+     * Get the maximum value seen by the field
+     */
+    virtual T
+    GetGlobalMax() const {return globalMax_;}
+
+    /*
+     * Get the minimum value seen by the field in raw units
+     */
+    virtual uint64_t
+    GetRawGlobalMin() const {return XCDFSafeTypePun<T, uint64_t>(globalMin_);}
+
+    /*
+     * Get the maximum value seen by the field in raw units
+     */
+    virtual uint64_t
+    GetRawGlobalMax() const {return XCDFSafeTypePun<T, uint64_t>(globalMax_);}
+
+    /*
+     * Set the minimum value seen by the field in raw units.  Check the value
+     * so if we can attempt to set it to a less-extreme value with no effect.
+     * This is not elegant, but eliminates even less-elegant code when dealing
+     * with concatenated files.
+     */
+    virtual void SetRawGlobalMin(uint64_t rawGlobalMin) {
+      CheckGlobalMin(XCDFSafeTypePun<uint64_t, T>(rawGlobalMin));
+    }
+
+    /*
+     * Set the maximum value seen by the field in raw units.  Check the value
+     * so if we can attempt to set it to a less-extreme value with no effect.
+     * This is not elegant, but eliminates even less-elegant code when dealing
+     * with concatenated files.
+     */
+    virtual void SetRawGlobalMax(uint64_t rawGlobalMax) {
+      CheckGlobalMax(XCDFSafeTypePun<uint64_t, T>(rawGlobalMax));
+    }
+
+    /*
+     *  Get the number of bytes used by the field.  This is entirely
+     *  storage.  We don't modify this internally ever.
+     */
+    virtual uint64_t
+    GetTotalBytes() const {return totalBytes_;}
+    virtual void
+    SetTotalBytes(uint64_t totalBytes) {totalBytes_ = totalBytes;}
+
     /// Iterate over the field
     typedef const T* ConstIterator;
     virtual ConstIterator Begin() const = 0;
@@ -154,9 +271,17 @@ class XCDFFieldData : public XCDFFieldDataBase {
     T activeMin_;
     T activeMax_;
 
+    /// Absolute min and max values
+    T globalMin_;
+    T globalMax_;
+
     /// Have we written data to the field?
     bool minSet_;
     bool maxSet_;
+
+    /// Have we written the global max/min?
+    bool globalMinSet_;
+    bool globalMaxSet_;
 
     /// Number of bits needed for this field in the current block
     mutable uint32_t activeSize_;
@@ -164,32 +289,47 @@ class XCDFFieldData : public XCDFFieldDataBase {
     /// Storage for data held in write cache, awaiting max/min limits to be set
     std::deque<T> stash_;
 
-    void CheckActiveMin(const T value);
-    void CheckActiveMax(const T value);
-    void DoCheckActiveMin(const T value) {
-      if (value < activeMin_ || !minSet_) {
-        activeMin_ = value;
-      }
-      minSet_ = true;
+    /// Total bytes used by the field.  We can't just use bitsProcessed
+    /// because reading files back must necessarily alter bitsProcessed,
+    /// but totalBytes_ should be static after we've calculated the value.
+    uint64_t totalBytes_;
+
+    /// Bits we've processed; used to determine total bytes
+    uint64_t bitsProcessed_;
+
+    void CheckActiveMin(const T value) {
+      DoCheck(value, activeMin_, minSet_, std::less<T>());
     }
 
-    void DoCheckActiveMax(const T value) {
-      if (value > activeMax_ || !maxSet_) {
-        activeMax_ = value;
-      }
-      maxSet_ = true;
+    void CheckActiveMax(const T value) {
+      DoCheck(value, activeMax_, maxSet_, std::greater<T>());
+    }
+
+    void CheckGlobalMin(const T value) {
+      DoCheck(value, globalMin_, globalMinSet_, std::less<T>());
+    }
+
+    void CheckGlobalMax(const T value) {
+      DoCheck(value, globalMax_, globalMaxSet_, std::greater<T>());
     }
 
     /*
      *  Load a value from the XCDFBlockData
      */
-    T LoadValue(XCDFBlockData& data, bool checkMax) {
+    T LoadValue(XCDFBlockData& data) {
       T value = CalculateTypeValue(data.GetDatum(activeSize_));
-      if (checkMax) {
-        // We only have the active min.  We need to rediscover the max.
-        CheckActiveMax(value);
-      }
+      // We only have the active min.  We need to rediscover the max.
+      CheckActiveMax(value);
+      bitsProcessed_ += activeSize_;
       return value;
+    }
+
+    /*
+     *  Dump a value to the XCDFBlockData
+     */
+    void DumpValue(XCDFBlockData& data, T datum) {
+      data.AddDatum(CalculateIntegerValue(datum), GetActiveSize());
+      bitsProcessed_ += activeSize_;
     }
 
     /*
@@ -231,16 +371,6 @@ class XCDFFieldData : public XCDFFieldDataBase {
       return bitCount;
     }
 };
-
-template <typename T>
-inline void XCDFFieldData<T>::CheckActiveMin(const T value) {
-  DoCheckActiveMin(value);
-}
-
-template <typename T>
-inline void XCDFFieldData<T>::CheckActiveMax(const T value) {
-  DoCheckActiveMax(value);
-}
 
 //////// Specializations for uint64_t type
 
@@ -354,26 +484,6 @@ inline unsigned XCDFFieldData<double>::CalcActiveSize() const {
   }
 
   return bitCount;
-}
-
-template <>
-inline void XCDFFieldData<double>::CheckActiveMin(const double value) {
-  DoCheckActiveMin(value);
-
-  // Need to care for NaNs, since comparison is always false
-  if (std::isnan(value)) {
-    activeMin_ = value;
-  }
-}
-
-template <>
-inline void XCDFFieldData<double>::CheckActiveMax(const double value) {
-  DoCheckActiveMax(value);
-
-  // Need to care for NaNs, since comparison is always false
-  if (std::isnan(value)) {
-    activeMax_ = value;
-  }
 }
 
 #endif // XCDF_FIELD_DATA_INCLUDED_H
