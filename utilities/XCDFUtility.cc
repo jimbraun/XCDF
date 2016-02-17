@@ -890,7 +890,7 @@ void PrintUsage() {
 
   std::cout << "\n" <<
 
-    "Usage: xcdf-utility [verb] {infiles}\n\n" <<
+    "Usage: xcdf [verb] {infiles}\n\n" <<
 
     "    verb:    Description\n" <<
     "    ----     -----------\n\n"

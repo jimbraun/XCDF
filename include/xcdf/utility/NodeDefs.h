@@ -372,6 +372,7 @@ class BitwiseORNode<T, U, double> :
 
     double Evaluate(double a, double b) const {
       XCDFFatal("Bitwise OR requested for floating point data");
+      return 0.; // Unreachable
     }
 };
 
@@ -402,6 +403,8 @@ class BitwiseANDNode<T, U, double> :
 
     double Evaluate(double a, double b) const {
       XCDFFatal("Bitwise AND requested for floating point data");
+      return 0.; // Unreachable
+
     }
 };
 
@@ -444,6 +447,7 @@ class BitwiseNOTNode<double> : public Node<double> {
 
   double operator[](unsigned idx) const {
     XCDFFatal("Bitwise NOT requested for floating point data");
+    return 0.; // Unreachable
   }
   unsigned GetSize() const {return n1_.GetSize();}
 

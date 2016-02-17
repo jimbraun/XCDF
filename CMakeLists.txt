@@ -81,7 +81,8 @@ XCDF_ADD_EXECUTABLE (TARGET speed-test SOURCES tests/SpeedTest.cc)
 XCDF_ADD_EXECUTABLE (TARGET simple-test SOURCES tests/SimpleTest.cc)
 XCDF_ADD_EXECUTABLE (TARGET buffer-fill-test SOURCES tests/BufferFillTest.cc)
 XCDF_ADD_EXECUTABLE (TARGET append-test SOURCES tests/AppendTest.cc)
-XCDF_ADD_EXECUTABLE (TARGET utility SOURCES utilities/XCDFUtility.cc)
+XCDF_ADD_EXECUTABLE (TARGET utility SOURCES utilities/XCDFUtility.cc EXE_NAME xcdf)
+
 
 # Add an uninstallation script
 CONFIGURE_FILE(
