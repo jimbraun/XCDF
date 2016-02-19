@@ -9,6 +9,7 @@
 #include <Python.h>
 
 #include <xcdf/XCDFFile.h>
+#include <xcdf/utility/EventSelectExpression.h>
 #include <XCDFTypeConversion.h>
 #include <XCDFHeaderVisitor.h>
 #include <XCDFTupleSetter.h>
@@ -117,6 +118,8 @@ typedef struct {
   XCDFFile* file_;                      // pointer to current open XCDF file
   int iCurrent_;                        // current record being read
   int iTotal_;                          // total number of records in file
+  EventSelectExpression select_;        // object indicating whether an event
+                                        //      should be selected or skipped
 } XCDFRecordIterator;
 
 // Define __init__
@@ -150,32 +153,43 @@ XCDFRecordIterator_iternext(PyObject* self)
 
   try {
 
-    // If we have not reached the end of the file:
-    if (p->iCurrent_ < p->iTotal_ && p->file_->Read() > 0)
-    {
-      p->iCurrent_ = p->file_->GetCurrentEventNumber();
-      if (p->iCurrent_ < 0) {
+    for (;;) {
+
+      // If we have not reached the end of the file:
+      if (p->iCurrent_ < p->iTotal_ && p->file_->Read() > 0)
+      {
+        p->iCurrent_ = p->file_->GetCurrentEventNumber();
+        if (p->iCurrent_ < 0) {
+          PyErr_SetNone(PyExc_StopIteration);
+          return NULL;
+        }
+
+        // Check if we should select this event
+        if (!p->select_.SelectEvent()) {
+          continue;
+        }
+
+        // Create a field visitor to stuff data into a tuple
+        TupleSetter tsetter(p->file_->GetNFields());
+        p->file_->ApplyFieldVisitor(tsetter);
+
+        PyObject* result(tsetter.GetTuple());
+        return result;
+      }
+      // When reaching EOF, rewind the XCDF file and stop the iterator
+      else {
+        p->file_->Rewind();
         PyErr_SetNone(PyExc_StopIteration);
         return NULL;
       }
-
-      // Create a field visitor to stuff data into a tuple
-      TupleSetter tsetter(p->file_->GetNFields());
-      p->file_->ApplyFieldVisitor(tsetter);
-
-      PyObject* result(tsetter.GetTuple());
-      return result;
-    }
-    // When reaching EOF, rewind the XCDF file and stop the iterator
-    else {
-      p->file_->Rewind();
-      PyErr_SetNone(PyExc_StopIteration);
-      return NULL;
     }
   } catch (const XCDFException& e) {
     PyErr_SetString(pyxcdf_XCDFException, e.GetMessage().c_str());
     return NULL;
   }
+
+  // Should never be reached
+  return NULL;
 }
 
 // Definition of the record iterator type for python
@@ -367,12 +381,26 @@ XCDFFile_header(pyxcdf_XCDFFile* self)
 
 // Function to set up access to the record iterator
 static PyObject*
-XCDFRecord_iterator(pyxcdf_XCDFFile* self)
+XCDFRecord_iterator(pyxcdf_XCDFFile* self, PyObject* args, PyObject* kwargs)
 {
   // Make sure the XCDF file is valid
   if (self->file_ == NULL) {
     PyErr_SetString(PyExc_AttributeError, "file: not open");
     return NULL;
+  }
+
+  PyObject* select = NULL;
+  char *kwlist[] = {const_cast<char*>("select"), NULL};
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|O", kwlist, &select)) {
+    PyErr_SetString(PyExc_TypeError, "records([select=\"expression\"])");
+    return NULL;
+  }
+
+  // By default, select all events
+  const char* selectExpression = "true";
+  if (select) {
+    // Use the user-provided event selection
+    selectExpression = PyString_AsString(select);
   }
 
   XCDFRecordIterator* it = NULL;
@@ -388,6 +416,7 @@ XCDFRecord_iterator(pyxcdf_XCDFFile* self)
     it->file_ = self->file_;
     it->iCurrent_ = 0;
     it->iTotal_ = self->file_->GetEventCount();
+    it->select_ = EventSelectExpression(selectExpression, *(self->file_));
 
     return (PyObject*)it;
   }
@@ -567,7 +596,7 @@ static PyMethodDef XCDFFile_methods[] =
     const_cast<char*>("Get a record by number from the file") },
 
   { const_cast<char*>("records"), (PyCFunction)XCDFRecord_iterator,
-    METH_NOARGS,
+    METH_KEYWORDS,
     const_cast<char*>("Iterator over XCDF records") },
 
   { const_cast<char*>("fields"), (PyCFunction)XCDFField_iterator,
@@ -696,9 +725,8 @@ static PyMethodDef pyxcdf_methods[] =
     if (!module)
       return NULL;
 
-    char xcdfExceptionName[64];
-    sprintf(xcdfExceptionName, "%s", "pyxcdf.XCDFException");
-    pyxcdf_XCDFException = PyErr_NewException(xcdfExceptionName, NULL, NULL);
+    pyxcdf_XCDFException = PyErr_NewException(
+           const_cast<char*>("pyxcdf.XCDFException"), NULL, NULL);
     Py_INCREF(pyxcdf_XCDFException);
     PyModule_AddObject(module, "XCDFException", pyxcdf_XCDFException);
   }
@@ -724,9 +752,8 @@ static PyMethodDef pyxcdf_methods[] =
     PyModule_AddObject(module, "XCDFFile", (PyObject*)&pyxcdf_XCDFFileType);
 
     // Add XCDFException
-    char xcdfExceptionName[64];
-    sprintf(xcdfExceptionName, "%s", "pyxcdf.XCDFException");
-    pyxcdf_XCDFException = PyErr_NewException(xcdfExceptionName, NULL, NULL);
+    pyxcdf_XCDFException = PyErr_NewException(
+               const_cast<char*>("pyxcdf.XCDFException"), NULL, NULL);
     Py_INCREF(pyxcdf_XCDFException);
     PyModule_AddObject(module, "XCDFException", pyxcdf_XCDFException);
 
