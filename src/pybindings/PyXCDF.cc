@@ -118,7 +118,8 @@ typedef struct {
   XCDFFile* file_;                      // pointer to current open XCDF file
   int iCurrent_;                        // current record being read
   int iTotal_;                          // total number of records in file
-  EventSelectExpression select_;        // object indicating whether an event
+  FieldsByNameSelector* selectField_;   // Field extraction object
+  EventSelectExpression selectEvent_;   // object indicating whether an event
                                         //      should be selected or skipped
 } XCDFRecordIterator;
 
@@ -126,6 +127,10 @@ typedef struct {
 static int
 XCDFRecordIterator_init(XCDFRecordIterator* self, PyObject* args) {
 
+  if (self->selectField_) {
+    delete self->selectField_;
+  }
+  self->selectField_ = NULL;
   self->file_ = NULL;
   self->iCurrent_ = self->iTotal_ = 0;
   return 0;
@@ -134,6 +139,9 @@ XCDFRecordIterator_init(XCDFRecordIterator* self, PyObject* args) {
 // Define __del__
 static void
 XCDFRecordIterator_dealloc(XCDFRecordIterator* self) {
+  if (self->selectField_) {
+    delete self->selectField_;
+  }
   self->ob_type->tp_free((PyObject*)self);
 }
 
@@ -165,16 +173,24 @@ XCDFRecordIterator_iternext(PyObject* self)
         }
 
         // Check if we should select this event
-        if (!p->select_.SelectEvent()) {
+        if (!p->selectEvent_.SelectEvent()) {
           continue;
         }
 
-        // Create a field visitor to stuff data into a tuple
-        TupleSetter tsetter(p->file_->GetNFields());
-        p->file_->ApplyFieldVisitor(tsetter);
+        if (p->selectField_) {
 
-        PyObject* result(tsetter.GetTuple());
-        return result;
+          // We have a list of fields to extract
+          return p->selectField_->GetTuple();
+        } else {
+
+          // Keep all fields.
+          // Create a field visitor to stuff data into a tuple
+          TupleSetter tsetter(p->file_->GetNFields());
+          p->file_->ApplyFieldVisitor(tsetter);
+
+          PyObject* result(tsetter.GetTuple());
+          return result;
+        }
       }
       // When reaching EOF, rewind the XCDF file and stop the iterator
       else {
@@ -390,8 +406,18 @@ XCDFRecord_iterator(pyxcdf_XCDFFile* self, PyObject* args, PyObject* kwargs)
   }
 
   PyObject* select = NULL;
-  char *kwlist[] = {const_cast<char*>("select"), NULL};
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|O", kwlist, &select)) {
+  PyObject* fields = NULL;
+  char *kwlist[] = {const_cast<char*>("select"),
+                    const_cast<char*>("fields"),
+                    NULL};
+
+  if (!PyArg_ParseTupleAndKeywords(args,
+                                   kwargs,
+                                   "|OO",
+                                   kwlist,
+                                   &select,
+                                   &fields)) {
+
     PyErr_SetString(PyExc_TypeError, "records([select=\"expression\"])");
     return NULL;
   }
@@ -416,7 +442,11 @@ XCDFRecord_iterator(pyxcdf_XCDFFile* self, PyObject* args, PyObject* kwargs)
     it->file_ = self->file_;
     it->iCurrent_ = 0;
     it->iTotal_ = self->file_->GetEventCount();
-    it->select_ = EventSelectExpression(selectExpression, *(self->file_));
+    it->selectEvent_ = EventSelectExpression(selectExpression, *(self->file_));
+    if (fields) {
+      it->selectField_ = new FieldsByNameSelector(
+                             PyString_AsString(fields), *(self->file_));
+    }
 
     return (PyObject*)it;
   }
