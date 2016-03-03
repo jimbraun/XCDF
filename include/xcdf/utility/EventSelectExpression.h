@@ -51,17 +51,17 @@ class EventSelectExpression {
 
         case FLOATING_POINT_NODE:
           selectNode_ = XCDFPtr<Node<uint64_t> >(
-             new IsTrueNode<double>(*static_cast<Node<double>* >(start)));
+             new AnyNode<double>(*static_cast<Node<double>* >(start)));
           break;
 
         case SIGNED_NODE:
           selectNode_ = XCDFPtr<Node<uint64_t> >(
-             new IsTrueNode<int64_t>(*static_cast<Node<int64_t>* >(start)));
+             new AnyNode<int64_t>(*static_cast<Node<int64_t>* >(start)));
           break;
 
         case UNSIGNED_NODE:
           selectNode_ = XCDFPtr<Node<uint64_t> >(
-             new IsTrueNode<uint64_t>(*static_cast<Node<uint64_t>* >(start)));
+             new AnyNode<uint64_t>(*static_cast<Node<uint64_t>* >(start)));
           break;
 
         default:
@@ -69,19 +69,8 @@ class EventSelectExpression {
       }
     }
 
-    bool SelectEvent() const {
-
-      if (selectNode_->GetSize() == 0) {
-        return false;
-      } else {
-        for (unsigned i = 0; i < selectNode_->GetSize(); ++i) {
-          if ((*selectNode_)[i]) {
-            return true;
-          }
-        }
-        return false;
-      }
-    }
+    // We know AnyNode is always size 1
+    bool SelectEvent() const {return (*selectNode_)[0];}
 
   private:
 

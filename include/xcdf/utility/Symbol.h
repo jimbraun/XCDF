@@ -27,9 +27,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef XCDF_UTILITY_SYMBOL_H_INCLUDED
 #define XCDF_UTILITY_SYMBOL_H_INCLUDED
 
+#include <vector>
+
 enum SymbolType {
 
     VOID,
+    LIST,
     ADDITION,
     SUBTRACTION,
     MULTIPLICATION,
@@ -54,7 +57,10 @@ enum SymbolType {
     SIGNED_NODE,
     UNSIGNED_NODE,
     FLOATING_POINT_NODE,
+    IN,
     UNIQUE,
+    ANY,
+    ALL,
     SUM,
     SIN,
     COS,
@@ -105,6 +111,8 @@ class Symbol {
 
     bool IsUnaryFunction() const {
       return (type_ == UNIQUE ||
+              type_ == ANY    ||
+              type_ == ALL    ||
               type_ == SUM    ||
               type_ == SIN    ||
               type_ == COS    ||
@@ -133,7 +141,8 @@ class Symbol {
     bool IsBinaryFunction() const {
       return (type_ == FMOD ||
               type_ == POW  ||
-              type_ == ATAN2);
+              type_ == ATAN2 ||
+              type_ == IN);
     }
 
     bool IsComparison() const {
@@ -155,10 +164,41 @@ class Symbol {
     SymbolType type_;
 };
 
+class ListSymbol : public Symbol {
+
+  public:
+
+    ListSymbol() : Symbol(LIST) { }
+    ListSymbol(Symbol* n1, Symbol* n2) : Symbol(LIST) {
+      PushBack(n1);
+      PushBack(n2);
+    }
+
+    unsigned GetSize() const {return symbols_.size();}
+    std::vector<Symbol*>::const_iterator SymbolsBegin() const {
+      return symbols_.begin();
+    }
+
+    std::vector<Symbol*>::const_iterator SymbolsEnd() const {
+      return symbols_.end();
+    }
+
+    Symbol* operator[](unsigned idx) const {return symbols_[idx];}
+
+    void PushBack(Symbol* symbol) {
+      symbols_.push_back(symbol);
+    }
+
+  private:
+
+    std::vector<Symbol*> symbols_;
+};
+
 inline std::ostream& operator<<(std::ostream& os, const Symbol& s) {
 
   switch (s.GetType()) {
     case VOID:                os << "VOID"; break;
+    case LIST:                os << "list"; break;
     case ADDITION:            os << "operator +"; break;
     case SUBTRACTION:         os << "operator -"; break;
     case MULTIPLICATION:      os << "operator *"; break;
@@ -183,7 +223,10 @@ inline std::ostream& operator<<(std::ostream& os, const Symbol& s) {
     case SIGNED_NODE:         os << "SIGNED_NODE"; break;
     case UNSIGNED_NODE:       os << "UNSIGNED_NODE"; break;
     case FLOATING_POINT_NODE: os << "FLOATING_POINT_NODE"; break;
+    case IN:                  os << "in"; break;
     case UNIQUE:              os << "unique"; break;
+    case ANY:                 os << "any"; break;
+    case ALL:                 os << "all"; break;
     case SUM:                 os << "sum"; break;
     case SIN:                 os << "sin"; break;
     case COS:                 os << "cos"; break;
