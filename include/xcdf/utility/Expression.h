@@ -282,11 +282,28 @@ class Expression {
         return numerical;
       }
 
-      // Is this the name of a supported function?
+      // Custom function to compare against a list of nodes
+      if (!exp.compare("in")) {
+        return new Symbol(IN);
+      }
+
+      // Custom functions for vector data
+      // Return number of unique elements in a vector
       if (!exp.compare("unique")) {
         return new Symbol(UNIQUE);
       }
 
+      // Return true if any element is true
+      if (!exp.compare("any")) {
+        return new Symbol(ANY);
+      }
+
+      // Return true only if all elements are true
+      if (!exp.compare("all")) {
+        return new Symbol(ALL);
+      }
+
+      // Return the sum of the elements
       if (!exp.compare("sum")) {
         return new Symbol(SUM);
       }
@@ -531,7 +548,7 @@ class Expression {
 
         if ((*it)->IsBinaryFunction()) {
           Symbol* s = GetBinarySymbol(start, end, it, (*it)->GetType(), true);
-          it = ReplaceSymbols(s, it, 3, start);
+          it = ReplaceSymbols(s, it, 2, start);
         }
 
         if ((*it)->GetType() == POWER) {
@@ -658,7 +675,29 @@ class Expression {
       for (std::list<Symbol*>::iterator it = start; it != end; ++it) {
 
         if ((*it)->GetType() == COMMA) {
-          it = ReplaceSymbols(NULL, it, 1, start);
+          // if at start or end, get rid of it.
+          // Extra commas at beginning, end are OK.
+          if (it == start || distance(it, end) == 1) {
+            it = ReplaceSymbols(NULL, it, 1, start);
+            it--;
+          } else {
+            // We have a list.  Parse it.
+            Symbol* first = *(--it);
+            ++it;
+            Symbol* second = *(++it);
+            --it;
+            Symbol* list;
+            if (first->GetType() == LIST) {
+              // Add to the list
+              list = first;
+              static_cast<ListSymbol*>(list)->PushBack(second);
+            } else {
+              // Create a new list
+              list = new ListSymbol(first, second);
+              allocatedSymbols_.push_back(list);
+            }
+            it = ReplaceSymbols(list, --it, 3, start);
+          }
         }
       }
     }
@@ -716,16 +755,7 @@ class Expression {
         }
       }
 
-      switch (n1->GetType()) {
-
-        default:
-        case FLOATING_POINT_NODE:
-          return GetNode(static_cast<Node<double>* >(n1), type);
-        case SIGNED_NODE:
-          return GetNode(static_cast<Node<int64_t>* >(n1), type);
-        case UNSIGNED_NODE:
-          return GetNode(static_cast<Node<uint64_t>* >(n1), type);
-      }
+      return DoGetNode(n1, type);
     }
 
     Symbol* GetBinarySymbol(std::list<Symbol*>::iterator start,
@@ -741,22 +771,29 @@ class Expression {
 
       if (isFunction) {
 
-        if (distance(it, end) < 3) {
+        if (distance(it, end) < 2) {
           XCDFFatal("Cannot evaluate expression: " <<
                              "Missing binary operand in " << *func);
         }
+        ++it;
 
-        ++it;
-        n1 = *it;
-        ++it;
-        n2 = *it;
-
-        ++it;
-        if (it != end) {
-          if ((*it)->IsNode()) {
-            XCDFFatal("Too many arguments to binary function " << *func);
-          }
+        if ((*it)->GetType() != LIST) {
+          XCDFFatal("Cannot evaluate expression: " <<
+                                "Missing binary operand in " << *func);
         }
+
+        ListSymbol* argList = static_cast<ListSymbol*>(*it);
+        if (argList->GetSize() < 2) {
+          XCDFFatal("Cannot evaluate expression: " <<
+                                "Missing binary operand in " << *func);
+        }
+
+        if (argList->GetSize() > 2) {
+          XCDFFatal("Too many arguments to binary function " << *func);
+        }
+
+        n1 = (*argList)[0];
+        n2 = (*argList)[1];
 
       } else {
 
@@ -773,73 +810,24 @@ class Expression {
         n2 = *it;
       }
 
-      if (!(n2->IsNode()) || !(n1->IsNode())) {
+      if (!(n1->IsNode()) ||  !((n2->IsNode()) || type == IN)) {
         XCDFFatal("Cannot evaluate expression: " <<
                                 "Missing binary operand in " << *func);
       }
 
+      return DoGetNode(n1, n2, type);
+    }
+
+    Symbol* DoGetNode(Symbol* n1, SymbolType type) {
       switch (n1->GetType()) {
 
-        case FLOATING_POINT_NODE:
-
-          switch (n2->GetType()) {
-
-            default:
-            case FLOATING_POINT_NODE:
-              return GetNode<double, double, double>(
-                             static_cast<Node<double>* >(n1),
-                             static_cast<Node<double>* >(n2), type);
-            case SIGNED_NODE:
-              return GetNode<double, int64_t, double>(
-                             static_cast<Node<double>* >(n1),
-                             static_cast<Node<int64_t>* >(n2), type);
-            case UNSIGNED_NODE:
-              return GetNode<double, uint64_t, double>(
-                             static_cast<Node<double>* >(n1),
-                             static_cast<Node<uint64_t>* >(n2), type);
-          }
-
-        case SIGNED_NODE:
-
-          switch (n2->GetType()) {
-
-            default:
-            case FLOATING_POINT_NODE:
-              return GetNode<int64_t, double, double>(
-                             static_cast<Node<int64_t>* >(n1),
-                             static_cast<Node<double>* >(n2), type);
-            case SIGNED_NODE:
-              return GetNode<int64_t, int64_t, int64_t>(
-                             static_cast<Node<int64_t>* >(n1),
-                             static_cast<Node<int64_t>* >(n2), type);
-            case UNSIGNED_NODE:
-              return GetNode<int64_t, uint64_t, int64_t>(
-                             static_cast<Node<int64_t>* >(n1),
-                             static_cast<Node<uint64_t>* >(n2), type);
-          }
-
-        case UNSIGNED_NODE:
-
-          switch (n2->GetType()) {
-
-            default:
-            case FLOATING_POINT_NODE:
-              return GetNode<uint64_t, double, double>(
-                             static_cast<Node<uint64_t>* >(n1),
-                             static_cast<Node<double>* >(n2), type);
-            case SIGNED_NODE:
-              return GetNode<uint64_t, int64_t, int64_t>(
-                             static_cast<Node<uint64_t>* >(n1),
-                             static_cast<Node<int64_t>* >(n2), type);
-            case UNSIGNED_NODE:
-              return GetNode<uint64_t, uint64_t, uint64_t>(
-                             static_cast<Node<uint64_t>* >(n1),
-                             static_cast<Node<uint64_t>* >(n2), type);
-          }
-
         default:
-
-          return new Symbol();
+        case FLOATING_POINT_NODE:
+          return GetNode(static_cast<Node<double>* >(n1), type);
+        case SIGNED_NODE:
+          return GetNode(static_cast<Node<int64_t>* >(n1), type);
+        case UNSIGNED_NODE:
+          return GetNode(static_cast<Node<uint64_t>* >(n1), type);
       }
     }
 
@@ -860,6 +848,10 @@ class Expression {
           return new BitwiseNOTNode<T>(*n1);
         case UNIQUE:
           return new UniqueNode<T>(*n1);
+        case ANY:
+          return new AnyNode<T>(*n1);
+        case ALL:
+          return new AllNode<T>(*n1);
         case SUM:
           return new SumNode<T>(*n1);
         case SIN:
@@ -904,6 +896,92 @@ class Expression {
 
       assert(false);
       return new Symbol();
+    }
+
+    Symbol* DoGetNode(Symbol* n1, Symbol* n2, SymbolType type) {
+
+      if (type == IN) {
+        switch (n1->GetType()) {
+          default:
+          case FLOATING_POINT_NODE:
+            return GetInNode<double>(static_cast<Node<double>* >(n1), n2);
+          case SIGNED_NODE:
+            return GetInNode<int64_t>(static_cast<Node<int64_t>* >(n1), n2);
+          case UNSIGNED_NODE:
+            return GetInNode<uint64_t>(static_cast<Node<uint64_t>* >(n1), n2);
+        }
+      }
+
+      switch (n1->GetType()) {
+
+        case FLOATING_POINT_NODE: {
+
+          switch (n2->GetType()) {
+
+            default:
+            case FLOATING_POINT_NODE:
+              return GetNode<double, double, double>(
+                             static_cast<Node<double>* >(n1),
+                             static_cast<Node<double>* >(n2), type);
+            case SIGNED_NODE:
+              return GetNode<double, int64_t, double>(
+                             static_cast<Node<double>* >(n1),
+                             static_cast<Node<int64_t>* >(n2), type);
+            case UNSIGNED_NODE:
+              return GetNode<double, uint64_t, double>(
+                             static_cast<Node<double>* >(n1),
+                             static_cast<Node<uint64_t>* >(n2), type);
+          }
+          break;
+        }
+
+        case SIGNED_NODE: {
+
+          switch (n2->GetType()) {
+
+            default:
+            case FLOATING_POINT_NODE:
+              return GetNode<int64_t, double, double>(
+                             static_cast<Node<int64_t>* >(n1),
+                             static_cast<Node<double>* >(n2), type);
+            case SIGNED_NODE:
+              return GetNode<int64_t, int64_t, int64_t>(
+                             static_cast<Node<int64_t>* >(n1),
+                             static_cast<Node<int64_t>* >(n2), type);
+            case UNSIGNED_NODE:
+              return GetNode<int64_t, uint64_t, int64_t>(
+                             static_cast<Node<int64_t>* >(n1),
+                             static_cast<Node<uint64_t>* >(n2), type);
+
+          }
+          break;
+        }
+
+        case UNSIGNED_NODE: {
+
+          switch (n2->GetType()) {
+
+            default:
+            case FLOATING_POINT_NODE:
+              return GetNode<uint64_t, double, double>(
+                             static_cast<Node<uint64_t>* >(n1),
+                             static_cast<Node<double>* >(n2), type);
+            case SIGNED_NODE:
+              return GetNode<uint64_t, int64_t, int64_t>(
+                             static_cast<Node<uint64_t>* >(n1),
+                             static_cast<Node<int64_t>* >(n2), type);
+            case UNSIGNED_NODE:
+              return GetNode<uint64_t, uint64_t, uint64_t>(
+                             static_cast<Node<uint64_t>* >(n1),
+                             static_cast<Node<uint64_t>* >(n2), type);
+          }
+          break;
+        }
+
+        default:
+
+          return new Symbol();
+      }
     }
 
     template <typename T, typename U, typename DominantType>
@@ -955,10 +1033,47 @@ class Expression {
           return new Atan2Node<T, U>(*n1, *n2);
         case POW:
           return new PowerNode<T, U>(*n1, *n2);
-
         default:
           return new Symbol();
       }
+    }
+
+    template <typename T, typename U>
+    T GetConstValue(Symbol* s) {
+      ConstNode<U>* cn = dynamic_cast<ConstNode<U>* >(s);
+      if (!cn) {
+        XCDFFatal("Non-constant value used inside \"in\" expression");
+      }
+      // Get the datum value and cast as type T
+      return static_cast<T>((*cn)[0]);
+    }
+
+    template <typename T>
+    T GetNodeValue(Symbol* s) {
+      switch (s->GetType()) {
+        case FLOATING_POINT_NODE: return GetConstValue<T, double>(s);
+        case SIGNED_NODE: return GetConstValue<T, int64_t>(s);
+        case UNSIGNED_NODE: return GetConstValue<T, uint64_t>(s);
+        default:
+          XCDFFatal("Non-constant value used inside \"in\" expression");
+      }
+    }
+
+    template <typename T>
+    Symbol* GetInNode(Node<T>* n1, Symbol* n2) {
+      std::vector<T> data;
+      if (n2->GetType() == LIST) {
+        ListSymbol* list = static_cast<ListSymbol*>(n2);
+        for (std::vector<Symbol*>::const_iterator
+                                    it = list->SymbolsBegin();
+                                    it != list->SymbolsEnd(); ++it) {
+          data.push_back(GetNodeValue<T>(*it));
+        }
+      } else {
+        // Not a list.
+        data.push_back(GetNodeValue<T>(n2));
+      }
+      return new InNode<T>(*n1, data);
     }
 
     Symbol* GetVoidSymbol(std::list<Symbol*>::iterator start,

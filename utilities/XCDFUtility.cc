@@ -1,6 +1,7 @@
 
 #include <xcdf/utility/XCDFUtility.h>
 #include <xcdf/utility/EventSelectExpression.h>
+#include <xcdf/utility/HistogramFiller.h>
 #include <xcdf/utility/Histogram.h>
 #include <xcdf/XCDFDefs.h>
 #include <xcdf/config.h>
@@ -193,7 +194,8 @@ void CSV(std::vector<std::string>& infiles) {
   }
 }
 
-void Count(std::vector<std::string>& infiles) {
+void Count(std::vector<std::string>& infiles,
+           std::string& exp) {
 
   uint64_t count = 0;
   XCDFFile f;
@@ -210,7 +212,19 @@ void Count(std::vector<std::string>& infiles) {
       f.Open(infiles[i], "r");
     }
 
-    count += f.GetEventCount();
+    if (!exp.compare("")) {
+
+      // just count the events
+      count += f.GetEventCount();
+    } else {
+      // use the supplied expression
+      EventSelectExpression expression(exp, f);
+      while (f.Read()) {
+        if (expression.SelectEvent()) {
+          ++count;
+        }
+      }
+    }
     f.Close();
   }
 
@@ -632,30 +646,43 @@ void FixBins(double& min, double& max, const unsigned nbins) {
   }
 }
 
+void ProcessExpression(const std::string& exp,
+                       std::vector<std::string>& args) {
+
+  // Remove whitespace, then replace the valid comma delimiters
+  // with newlines.  Commas within parenthesis are not delimiters.
+  int pcnt = 0;
+  std::string out = exp;
+  for (;;) {
+    size_t pos = out.find_first_of(" \n\r\t");
+    if (pos == std::string::npos) {
+      break;
+    }
+    out.erase(pos, 1);
+  }
+  for (std::string::iterator it = out.begin(); it != out.end(); ++it) {
+    if (*it == '(') {
+      ++pcnt;
+    } else if (*it == ')') {
+      --pcnt;
+    } else if (*it == ',' && pcnt == 0) {
+      *it = '\n';
+    }
+  }
+
+  char* expPtr = const_cast<char*>(out.c_str());
+  for (char* tok = strtok(expPtr, "\n"); tok != NULL;
+                                        tok = strtok(NULL, "\n")) {
+    args.push_back(std::string(tok));
+  }
+}
+
 void CreateHistogram(std::vector<std::string>& infiles,
                      std::string& exp) {
 
   // Parse CSV expression
   std::vector<std::string> args;
-  char* expPtr = const_cast<char*>(exp.c_str());
-  for (char* tok = strtok(expPtr, ","); tok != NULL;
-                                        tok = strtok(NULL, ",")) {
-
-    std::string str(tok);
-
-    // Trim leading and trailing whitespace
-    size_t endPos = str.find_last_not_of(" \n\r\t");
-    if(endPos != std::string::npos) {
-      str = str.substr(0, endPos+1);
-    }
-
-    size_t startPos = str.find_first_not_of(" \n\r\t");
-    if(startPos != std::string::npos) {
-      str = str.substr(startPos);
-    }
-
-    args.push_back(str);
-  }
+  ProcessExpression(exp, args);
 
   if (!(args.size() == 2 || args.size() == 3 ||
         args.size() == 4 || args.size() == 5)) {
@@ -716,25 +743,7 @@ void CreateHistogram2D(std::vector<std::string>& infiles,
 
   // Parse CSV expression
   std::vector<std::string> args;
-  char* expPtr = const_cast<char*>(exp.c_str());
-  for (char* tok = strtok(expPtr, ","); tok != NULL;
-                                        tok = strtok(NULL, ",")) {
-
-    std::string str(tok);
-
-    // Trim leading and trailing whitespace
-    size_t endPos = str.find_last_not_of(" \n\r\t");
-    if(endPos != std::string::npos) {
-      str = str.substr(0, endPos+1);
-    }
-
-    size_t startPos = str.find_first_not_of(" \n\r\t");
-    if(startPos != std::string::npos) {
-      str = str.substr(startPos);
-    }
-
-    args.push_back(str);
-  }
+  ProcessExpression(exp, args);
 
   if (!(args.size() == 4 || args.size() == 5 ||
         args.size() == 8 || args.size() == 9)) {
@@ -901,7 +910,9 @@ void PrintUsage() {
 
     "    dump     Output data event-by-event in a human-readable format.\n\n" <<
 
-    "    count    Count the number of events in the file.\n\n" <<
+    "    count    {-e expression} Count the number of events in the file.\n" <<
+    "             If optional expression is supplied, count only the\n" <<
+    "             events that satisfy the expression.\n\n" <<
 
     "    csv      Output data into comma-separated-value format.\n\n" <<
 
@@ -991,6 +1002,23 @@ int main(int argc, char** argv) {
   std::string copyFile = "";
   std::string delimeter = ",";
   int currentArg = 2;
+
+  if (!verb.compare("count")) {
+
+    if (currentArg < argc) {
+      std::string out(argv[currentArg]);
+      if (!out.compare("-e")) {
+
+        if (++currentArg == argc) {
+          PrintUsage();
+          exit(1);
+        }
+
+        // Use the user-defined cut expression to count
+        exp = std::string(argv[currentArg++]);
+      }
+    }
+  }
 
   if (!verb.compare("recover") || 
       !verb.compare("remove-comments")) {
@@ -1112,7 +1140,7 @@ int main(int argc, char** argv) {
   }
 
   else if (!verb.compare("count")) {
-    Count(infiles);
+    Count(infiles, exp);
   }
 
   else if (!verb.compare("csv")) {

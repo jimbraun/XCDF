@@ -81,6 +81,10 @@ class NumericalExpression {
       return (*masterNode_)[index];
     }
 
+    NodeRelationType GetNodeRelationType(const NumericalExpression& ex) const {
+      return GetRelationType(*masterNode_, *(ex.masterNode_));
+    }
+
   private:
 
     XCDFPtr<Expression> expression_;

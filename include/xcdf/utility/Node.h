@@ -28,6 +28,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define XCDF_UTILITY_NODE_H_INCLUDED
 
 #include <xcdf/utility/Symbol.h>
+#include <xcdf/XCDFDefs.h>
 
 template <typename T>
 class Node : public Symbol {
@@ -37,15 +38,70 @@ class Node : public Symbol {
     Node() { }
     virtual T operator[](unsigned index) const = 0;
     virtual unsigned GetSize() const = 0;
+
+    // Need to know more about vector fields to understand
+    // proper evaluation relationships.  Treat any node as
+    // if it is derived from an XCDFField.  This is a bit
+    // of a kludge IMO.
+
+    // Set no parent by default
+    virtual bool HasParent() const {return false;}
+    virtual const std::string& GetParentName() const {return NO_PARENT;}
+    virtual const std::string& GetName() const {return NO_PARENT;}
 };
 
 template <> inline
-Node<int64_t>::Node() {type_ = SIGNED_NODE;}
+Node<int64_t>::Node() : Symbol(SIGNED_NODE) { }
 
 template <> inline
-Node<uint64_t>::Node() {type_ = UNSIGNED_NODE;}
+Node<uint64_t>::Node() : Symbol(UNSIGNED_NODE) { }
 
 template <> inline
-Node<double>::Node() {type_ = FLOATING_POINT_NODE;}
+Node<double>::Node() : Symbol(FLOATING_POINT_NODE) { }
+
+/*
+ *  Operations to check the parent relationship between two node objects
+ */
+enum NodeRelationType {
+  SCALAR,
+  SCALAR_FIRST,
+  SCALAR_SECOND,
+  VECTOR_VECTOR,
+};
+
+/*
+ *  Calculate the relation type between two nodes.  The following
+ *  relations are supported:
+ *  1. Scalar node compared with anything.  In case of vector,
+ *     resulting size is the size of the vector node.
+ *  2. Node derived from a vector field compared with a similar node from
+ *     the same parent. The resulting size is the size of either field.
+ *  *  We're missing obvious cases: comparing a 2D vector field with its
+ *     parent or a sibling of its parent.  The latter is more likely, but
+ *     actually very difficult to implement.
+ */
+template <typename T, typename U>
+NodeRelationType GetRelationType(const Node<T>& n1, const Node<U>& n2) {
+  if (!n1.HasParent() && !n2.HasParent()) {
+    return SCALAR;
+  }
+  if (!n1.HasParent()) {
+    return SCALAR_FIRST;
+  }
+  // n1 has a parent
+  if (!n2.HasParent()) {
+    return SCALAR_SECOND;
+  }
+  // both fields have a parent
+  if (n1.GetParentName() == n2.GetParentName()) {
+    return VECTOR_VECTOR;
+  }
+
+  XCDFFatal("Unable to compare vector fields " <<
+                     n1.GetName() << " and " << n2.GetName());
+
+  // Unreachable
+  return SCALAR;
+}
 
 #endif // XCDF_UTILITY_NODE_H_INCLUDED

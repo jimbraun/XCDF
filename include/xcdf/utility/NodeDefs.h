@@ -44,6 +44,10 @@ class FieldNode : public Node<T> {
     T operator[](unsigned index) const {return field_[index];}
     unsigned GetSize() const {return field_.GetSize();}
 
+    bool HasParent() const {return field_.HasParent();}
+    const std::string& GetParentName() const {return field_.GetParentName();}
+    const std::string& GetName() const {return field_.GetName();}
+
   private:
 
     ConstXCDFField<T> field_;
@@ -80,6 +84,38 @@ class CounterNode : public Node<uint64_t> {
     const XCDFFile& f_;
 };
 
+namespace {
+
+class GetSizePolicy {
+  public:
+    typedef unsigned ReturnType;
+    template <typename NodeType>
+    ReturnType operator()(const NodeType& node) {return node.GetSize();}
+};
+
+class HasParentPolicy {
+  public:
+    typedef bool ReturnType;
+    template <typename NodeType>
+    ReturnType operator()(const NodeType& node) {return node.HasParent();}
+};
+
+class GetParentNamePolicy {
+  public:
+    typedef const std::string& ReturnType;
+    template <typename NodeType>
+    ReturnType operator()(const NodeType& node) {return node.GetParentName();}
+};
+
+class GetNamePolicy {
+  public:
+    typedef const std::string& ReturnType;
+    template <typename NodeType>
+    ReturnType operator()(const NodeType& node) {return node.GetName();}
+};
+
+}
+
 template <typename T,
           typename U,
           typename DominantType,
@@ -90,67 +126,83 @@ class BinaryNode : public Node<ReturnType> {
   public:
 
     BinaryNode(Node<T>& n1, Node<U>& n2) : n1_(n1),
-                                           n2_(n2) { }
+                                           n2_(n2),
+                                           type_(GetRelationType(n1, n2)) { }
 
     ReturnType operator[](unsigned index) const {
 
-      // Get sizes of underlying nodes.  Note:  This is very
-      // inefficient!
-      unsigned size1 = n1_.GetSize();
-      unsigned size2 = n2_.GetSize();
-
-      if (size1 == 1) {
-        if (index >= size2) {
-          XCDFFatal("Array index out of bounds");
-        }
-        return DoEvaluation(n1_[0], n2_[index]);
+      // Note that, as in standard C style, the burden on checking
+      // that the index is in range falls on the caller.
+      switch (type_) {
+        case SCALAR:
+        case SCALAR_FIRST: return DoEvaluation(n1_[0], n2_[index]);
+        case VECTOR_VECTOR: return DoEvaluation(n1_[index], n2_[index]);
+        case SCALAR_SECOND: return DoEvaluation(n1_[index], n2_[0]);
       }
-
-      if (size2 == 1) {
-        if (index >= size1) {
-          XCDFFatal("Array index out of bounds");
-        }
-        return DoEvaluation(n1_[index], n2_[0]);
-      }
-
-      // 2 vector nodes; this is rare. Verify that vector sizes are equal to
-      // avoid dumb errors.
-      if (size1 != size2) {
-        XCDFFatal("Unable to evaluate: Vector nodes have different lengths!");
-      }
-      if (index >= size2) {
-        XCDFFatal("Array index out of bounds");
-      }
-      return DoEvaluation(n1_[index], n2_[index]);
     }
 
-    // Support the (scalar + vector) case.
-    unsigned GetSize() const {
+    GetSizePolicy::ReturnType GetSize() const {
+      return ApplyToLargerNode(GetSizePolicy());
+    }
 
-      unsigned size1 = n1_.GetSize();
-      unsigned size2 = n2_.GetSize();
+    HasParentPolicy::ReturnType HasParent() const {
+      return ApplyToLargerNode(HasParentPolicy());
+    }
 
-      if (size1 == 1) {
-        return size2;
-      }
+    GetParentNamePolicy::ReturnType GetParentName() const {
+      return ApplyToLargerNode(GetParentNamePolicy());
+    }
 
-      if (size2 == 1) {
-        return size1;
-      }
-
-      return std::min(size1, size2);
+    GetNamePolicy::ReturnType GetName() const {
+      return ApplyToLargerNode(GetNamePolicy());
     }
 
   private:
 
-    ReturnType DoEvaluation(T a, U b) const {
-      return static_cast<const Derived*>(this)->Evaluate(
-               static_cast<DominantType>(a), static_cast<DominantType>(b));
-    }
-
     Node<T>& n1_;
     Node<U>& n2_;
+    NodeRelationType type_;
 
+    // Repeat the name of the highest-dimensional vector
+    // of the two nodes.
+    template <typename Policy>
+    typename Policy::ReturnType
+    ApplyToLargerNode(Policy policy) const {
+      switch (type_) {
+        case SCALAR:
+        case SCALAR_FIRST:
+        case VECTOR_VECTOR: return policy(n2_);
+        case SCALAR_SECOND: return policy(n1_);
+      }
+    }
+
+    ReturnType DoEvaluation(T a, U b) const {
+      return static_cast<const Derived*>(this)->Evaluate(
+                 static_cast<DominantType>(a), static_cast<DominantType>(b));
+    }
+};
+
+template <typename T, typename ReturnType, typename Derived>
+class UnaryNode : public Node<ReturnType> {
+  public:
+
+    UnaryNode(Node<T>& node) : node_(node) { }
+    ReturnType operator[](unsigned idx) const {
+      return DoEvaluation(node_[idx]);
+    }
+
+    unsigned GetSize() const {return node_.GetSize();}
+    bool HasParent() const {return node_.HasParent();}
+    const std::string& GetParentName() const {return node_.GetParentName();}
+    const std::string& GetName() const {return node_.GetName();}
+
+  private:
+
+    Node<T>& node_;
+
+    ReturnType DoEvaluation(T a) const {
+      return static_cast<const Derived*>(this)->Evaluate(a);
+    }
 };
 
 template <typename T, typename U, typename DominantType>
@@ -409,81 +461,64 @@ class BitwiseANDNode<T, U, double> :
 };
 
 template <typename T>
-class LogicalNOTNode : public Node<uint64_t> {
+class LogicalNOTNode : public UnaryNode<T, uint64_t, LogicalNOTNode<T> > {
 
   public:
 
-  LogicalNOTNode(Node<T>& n1) : n1_(n1) { }
-
-  uint64_t operator[](unsigned idx) const {return !(n1_[idx]);}
-  unsigned GetSize() const {return n1_.GetSize();}
-
-  private:
-
-    Node<T>& n1_;
+  LogicalNOTNode(Node<T>& n1) :
+              UnaryNode<T, uint64_t, LogicalNOTNode<T> >(n1) { }
+  uint64_t Evaluate(T a) const {return !a;}
 };
 
 template <typename T>
-class BitwiseNOTNode : public Node<T> {
+class BitwiseNOTNode : public UnaryNode<T, T, BitwiseNOTNode<T> > {
 
   public:
 
-  BitwiseNOTNode(Node<T>& n1) : n1_(n1) { }
-
-  T operator[](unsigned idx) const {return ~(n1_[idx]);}
-  unsigned GetSize() const {return n1_.GetSize();}
-
-  private:
-
-    Node<T>& n1_;
+  BitwiseNOTNode(Node<T>& n1) :
+      UnaryNode<T, T, BitwiseNOTNode<T> >(n1) { }
+  T Evaluate(T a) const {return ~a;}
 };
 
 template <>
-class BitwiseNOTNode<double> : public Node<double> {
+class BitwiseNOTNode<double> :
+            public UnaryNode<double, double, BitwiseNOTNode<double> > {
 
   public:
 
-  BitwiseNOTNode(Node<double>& n1) : n1_(n1) { }
-
-  double operator[](unsigned idx) const {
-    XCDFFatal("Bitwise NOT requested for floating point data");
-    return 0.; // Unreachable
+    BitwiseNOTNode(Node<double>& n1) :
+               UnaryNode<double, double, BitwiseNOTNode<double> >(n1) { }
+    double Evaluate(double a) const {
+      XCDFFatal("Bitwise NOT requested for floating point data");
+      return 0.;
   }
-  unsigned GetSize() const {return n1_.GetSize();}
-
-  private:
-
-    Node<double>& n1_;
 };
 
 template <typename T>
-class IsTrueNode : public Node<uint64_t> {
+class InNode : public UnaryNode<T, uint64_t, InNode<T> > {
 
   public:
 
-  IsTrueNode(Node<T>& n1) : n1_(n1) { }
-
-  uint64_t operator[](unsigned idx) const {return n1_[idx] != 0;}
-  unsigned GetSize() const {return n1_.GetSize();}
+    InNode(Node<T>& node, const std::vector<T>& data) :
+                     UnaryNode<T, uint64_t, InNode<T> >(node) {
+      for (typename std::vector<T>::const_iterator it = data.begin();
+                                                   it != data.end(); ++it) {
+        data_.insert(static_cast<T>(*it));
+      }
+    }
+    uint64_t Evaluate(T a) const {return data_.find(a) != data_.end();}
 
   private:
-
-    Node<T>& n1_;
+    std::set<T> data_;
 };
 
 template <typename T, typename U>
-class CastNode : public Node<T> {
+class CastNode : public UnaryNode<U, T, CastNode<T, U> > {
 
   public:
 
-  CastNode(Node<U>& n1) : n1_(n1) { }
-
-  T operator[](unsigned idx) const {return static_cast<T>(n1_[idx]);}
-  unsigned GetSize() const {return n1_.GetSize();}
-
-  private:
-
-    Node<U>& n1_;
+  CastNode(Node<U>& n1) : UnaryNode<U, T, CastNode<T, U> >(n1) { }
+  T Evaluate(U a) const {return static_cast<T>(a);}
 };
 
 template <typename T>
@@ -509,6 +544,57 @@ class UniqueNode : public Node<uint64_t> {
 };
 
 template <typename T>
+class AnyNode : public Node<uint64_t> {
+
+  public:
+
+    AnyNode(Node<T>& node) : node_(node) { }
+    uint64_t operator[](unsigned idx) const {
+
+      for (unsigned i = 0; i < node_.GetSize(); ++i) {
+        // Note that this is node_[i] != 0, as defined by the C++ spec
+        if (node_[i]) {
+          return true;
+        }
+      }
+      return false;
+    }
+    unsigned GetSize() const {return 1;}
+
+  private:
+
+    Node<T>& node_;
+};
+
+template <typename T>
+class AllNode : public Node<uint64_t> {
+
+  public:
+
+    AllNode(Node<T>& node) : node_(node) { }
+    uint64_t operator[](unsigned idx) const {
+
+      // Need to explicitly check size and return false if size is zero
+      if (node_.GetSize() == 0) {
+        return false;
+      }
+
+      for (unsigned i = 0; i < node_.GetSize(); ++i) {
+        // Note that this is node_[i] == 0, as defined by the C++ spec
+        if (!node_[i]) {
+          return false;
+        }
+      }
+      return true;
+    }
+    unsigned GetSize() const {return 1;}
+
+  private:
+
+    Node<T>& node_;
+};
+
+template <typename T>
 class SumNode : public Node<T> {
 
   public:
@@ -529,272 +615,177 @@ class SumNode : public Node<T> {
 };
 
 template <typename T>
-class SinNode : public Node<double> {
+class SinNode : public UnaryNode<T, double, SinNode<T> > {
 
   public:
 
-    SinNode(Node<T>& node) : node_(node) { }
-    double operator[](unsigned idx) const {return sin(node_[idx]);}
-    unsigned GetSize() const {return node_.GetSize();}
-
-  private:
-
-    Node<T>& node_;
+    SinNode(Node<T>& node) : UnaryNode<T, double, SinNode<T> >(node) { }
+    double Evaluate(T a) const {return sin(a);}
 };
 
 template <typename T>
-class CosNode : public Node<double> {
+class CosNode : public UnaryNode<T, double, CosNode<T> > {
 
   public:
 
-    CosNode(Node<T>& node) : node_(node) { }
-    double operator[](unsigned idx) const {return cos(node_[idx]);}
-    unsigned GetSize() const {return node_.GetSize();}
-
-  private:
-
-    Node<T>& node_;
+    CosNode(Node<T>& node) : UnaryNode<T, double, CosNode<T> >(node) { }
+    double Evaluate(T a) const {return cos(a);}
 };
 
 template <typename T>
-class TanNode : public Node<double> {
+class TanNode : public UnaryNode<T, double, TanNode<T> > {
 
   public:
 
-    TanNode(Node<T>& node) : node_(node) { }
-    double operator[](unsigned idx) const {return tan(node_[idx]);}
-    unsigned GetSize() const {return node_.GetSize();}
-
-  private:
-
-    Node<T>& node_;
+    TanNode(Node<T>& node) : UnaryNode<T, double, TanNode<T> >(node) { }
+    double Evaluate(T a) const {return tan(a);}
 };
 
 template <typename T>
-class AsinNode : public Node<double> {
+class AsinNode : public UnaryNode<T, double, AsinNode<T> > {
 
   public:
 
-    AsinNode(Node<T>& node) : node_(node) { }
-    double operator[](unsigned idx) const {return asin(node_[idx]);}
-    unsigned GetSize() const {return node_.GetSize();}
-
-  private:
-
-    Node<T>& node_;
+    AsinNode(Node<T>& node) : UnaryNode<T, double, AsinNode<T> >(node) { }
+    double Evaluate(T a) const {return asin(a);}
 };
 
 template <typename T>
-class AcosNode : public Node<double> {
+class AcosNode : public UnaryNode<T, double, AcosNode<T> > {
 
   public:
 
-    AcosNode(Node<T>& node) : node_(node) { }
-    double operator[](unsigned idx) const {return acos(node_[idx]);}
-    unsigned GetSize() const {return node_.GetSize();}
-
-  private:
-
-    Node<T>& node_;
+    AcosNode(Node<T>& node) : UnaryNode<T, double, AcosNode<T> >(node) { }
+    double Evaluate(T a) const {return acos(a);}
 };
 
 template <typename T>
-class AtanNode : public Node<double> {
+class AtanNode : public UnaryNode<T, double, AtanNode<T> > {
 
   public:
 
-    AtanNode(Node<T>& node) : node_(node) { }
-    double operator[](unsigned idx) const {return atan(node_[idx]);}
-    unsigned GetSize() const {return node_.GetSize();}
-
-  private:
-
-    Node<T>& node_;
+    AtanNode(Node<T>& node) : UnaryNode<T, double, AtanNode<T> >(node) { }
+    double Evaluate(T a) const {return atan(a);}
 };
 
 template <typename T>
-class LogNode : public Node<double> {
+class LogNode : public UnaryNode<T, double, LogNode<T> > {
 
   public:
 
-    LogNode(Node<T>& node) : node_(node) { }
-    double operator[](unsigned idx) const {return log(node_[idx]);}
-    unsigned GetSize() const {return node_.GetSize();}
-
-  private:
-
-    Node<T>& node_;
+    LogNode(Node<T>& node) : UnaryNode<T, double, LogNode<T> >(node) { }
+    double Evaluate(T a) const {return log(a);}
 };
 
 template <typename T>
-class Log10Node : public Node<double> {
+class Log10Node : public UnaryNode<T, double, Log10Node<T> > {
 
   public:
 
-    Log10Node(Node<T>& node) : node_(node) { }
-    double operator[](unsigned idx) const {return log10(node_[idx]);}
-    unsigned GetSize() const {return node_.GetSize();}
-
-  private:
-
-    Node<T>& node_;
+    Log10Node(Node<T>& node) : UnaryNode<T, double, Log10Node<T> >(node) { }
+    double Evaluate(T a) const {return log10(a);}
 };
 
 template <typename T>
-class ExpNode : public Node<double> {
+class ExpNode : public UnaryNode<T, double, ExpNode<T> > {
 
   public:
 
-    ExpNode(Node<T>& node) : node_(node) { }
-    double operator[](unsigned idx) const {return exp(node_[idx]);}
-    unsigned GetSize() const {return node_.GetSize();}
-
-  private:
-
-    Node<T>& node_;
+    ExpNode(Node<T>& node) : UnaryNode<T, double, ExpNode<T> >(node) { }
+    double Evaluate(T a) const {return exp(a);}
 };
 
 template <typename T>
-class AbsNode : public Node<double> {
+class AbsNode : public UnaryNode<T, double, AbsNode<T> > {
 
   public:
 
-    AbsNode(Node<T>& node) : node_(node) { }
-    double operator[](unsigned idx) const {
-      return fabs(static_cast<double>(node_[idx]));
-    }
-    unsigned GetSize() const {return node_.GetSize();}
-
-  private:
-
-    Node<T>& node_;
+    AbsNode(Node<T>& node) : UnaryNode<T, double, AbsNode<T> >(node) { }
+    double Evaluate(T a) const {return fabs(static_cast<double>(a));}
 };
 
 // Specialize for uint64_t to avoid snarky warnings from Clang
 template <>
-class AbsNode<uint64_t> : public Node<double> {
+class AbsNode<uint64_t> :
+           public UnaryNode<uint64_t, double, AbsNode<uint64_t> > {
 
   public:
 
-      AbsNode(Node<uint64_t>& node) : node_(node) { }
-      double operator[](unsigned idx) const {return static_cast<double>(node_[idx]);}
-      unsigned GetSize() const {return node_.GetSize();}
-
-    private:
-
-      Node<uint64_t>& node_;
+      AbsNode(Node<uint64_t>& node) :
+            UnaryNode<uint64_t, double, AbsNode<uint64_t> >(node) { }
+      double Evaluate(uint64_t a) const {return static_cast<double>(a);}
 };
 
 template <typename T>
-class SqrtNode : public Node<double> {
+class SqrtNode : public UnaryNode<T, double, SqrtNode<T> > {
 
   public:
 
-    SqrtNode(Node<T>& node) : node_(node) { }
-    double operator[](unsigned idx) const {return sqrt(node_[idx]);}
-    unsigned GetSize() const {return node_.GetSize();}
-
-  private:
-
-    Node<T>& node_;
+    SqrtNode(Node<T>& node) : UnaryNode<T, double, SqrtNode<T> >(node) { }
+    double Evaluate(T a) const {return sqrt(a);}
 };
 
 template <typename T>
-class CeilNode : public Node<double> {
+class CeilNode : public UnaryNode<T, double, CeilNode<T> > {
 
   public:
 
-    CeilNode(Node<T>& node) : node_(node) { }
-    double operator[](unsigned idx) const {return ceil(node_[idx]);}
-    unsigned GetSize() const {return node_.GetSize();}
-
-  private:
-
-    Node<T>& node_;
+    CeilNode(Node<T>& node) : UnaryNode<T, double, CeilNode<T> >(node) { }
+    double Evaluate(T a) const {return ceil(a);}
 };
 
 template <typename T>
-class FloorNode : public Node<double> {
+class FloorNode : public UnaryNode<T, double, FloorNode<T> > {
 
   public:
 
-    FloorNode(Node<T>& node) : node_(node) { }
-    double operator[](unsigned idx) const {return floor(node_[idx]);}
-    unsigned GetSize() const {return node_.GetSize();}
-
-  private:
-
-    Node<T>& node_;
+    FloorNode(Node<T>& node) : UnaryNode<T, double, FloorNode<T> >(node) { }
+    double Evaluate(T a) const {return floor(a);}
 };
 
 template <typename T>
-class IsNaNNode : public Node<uint64_t> {
+class IsNaNNode : public UnaryNode<T, uint64_t, IsNaNNode<T> > {
 
   public:
 
-    IsNaNNode(Node<T>& node) : node_(node) { }
-    uint64_t operator[](unsigned idx) const {return std::isnan(node_[idx]);}
-    unsigned GetSize() const {return node_.GetSize();}
-
-  private:
-
-    Node<T>& node_;
+    IsNaNNode(Node<T>& node) : UnaryNode<T, uint64_t, IsNaNNode<T> >(node) { }
+    uint64_t Evaluate(T a) const {return std::isnan(a);}
 };
 
 template <typename T>
-class IsInfNode : public Node<uint64_t> {
+class IsInfNode : public UnaryNode<T, uint64_t, IsInfNode<T> > {
 
   public:
 
-    IsInfNode(Node<T>& node) : node_(node) { }
-    uint64_t operator[](unsigned idx) const {return std::isinf(node_[idx]);}
-    unsigned GetSize() const {return node_.GetSize();}
-
-  private:
-
-    Node<T>& node_;
+    IsInfNode(Node<T>& node) : UnaryNode<T, uint64_t, IsInfNode<T> >(node) { }
+    uint64_t Evaluate(T a) const {return std::isinf(a);}
 };
 
 template <typename T>
-class SinhNode : public Node<double> {
+class SinhNode : public UnaryNode<T, double, SinhNode<T> > {
 
   public:
 
-    SinhNode(Node<T>& node) : node_(node) { }
-    double operator[](unsigned idx) const {return sinh(node_[idx]);}
-    unsigned GetSize() const {return node_.GetSize();}
-
-  private:
-
-    Node<T>& node_;
+    SinhNode(Node<T>& node) : UnaryNode<T, double, SinhNode<T> >(node) { }
+    double Evaluate(T a) const {return sinh(a);}
 };
 
 template <typename T>
-class CoshNode : public Node<double> {
+class CoshNode : public UnaryNode<T, double, CoshNode<T> > {
 
   public:
 
-    CoshNode(Node<T>& node) : node_(node) { }
-    double operator[](unsigned idx) const {return cosh(node_[idx]);}
-    unsigned GetSize() const {return node_.GetSize();}
-
-  private:
-
-    Node<T>& node_;
+    CoshNode(Node<T>& node) : UnaryNode<T, double, CoshNode<T> >(node) { }
+    double Evaluate(T a) const {return cosh(a);}
 };
 
 template <typename T>
-class TanhNode : public Node<double> {
+class TanhNode : public UnaryNode<T, double, TanhNode<T> > {
 
   public:
 
-    TanhNode(Node<T>& node) : node_(node) { }
-    double operator[](unsigned idx) const {return tanh(node_[idx]);}
-    unsigned GetSize() const {return node_.GetSize();}
-
-  private:
-
-    Node<T>& node_;
+    TanhNode(Node<T>& node) : UnaryNode<T, double, TanhNode<T> >(node) { }
+    double Evaluate(T a) const {return tanh(a);}
 };
 
 class RandNode : public Node<uint64_t> {
