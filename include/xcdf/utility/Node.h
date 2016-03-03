@@ -97,8 +97,9 @@ NodeRelationType GetRelationType(const Node<T>& n1, const Node<U>& n2) {
     return VECTOR_VECTOR;
   }
 
-  XCDFFatal("Unable to compare vector fields " <<
-                     n1.GetName() << " and " << n2.GetName());
+  // Don't use XCDFFatal here, since we may want to catch this
+  XCDFThrow("Unable to compare vector fields " <<
+                          n1.GetName() << " and " << n2.GetName());
 
   // Unreachable
   return SCALAR;

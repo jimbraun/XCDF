@@ -980,7 +980,7 @@ void PrintUsage() {
     "  Multiple input files are allowed.\n";
 }
 
-int main(int argc, char** argv) {
+int do_main(int argc, char** argv) {
 
   if (argc < 2) {
     PrintUsage();
@@ -1205,4 +1205,13 @@ int main(int argc, char** argv) {
   }
 
   return 0;
+}
+
+int main(int argc, char** argv) {
+  try {
+    return do_main(argc, argv);
+  } catch (XCDFException& e) {
+    std::cout << "Caught XCDFException: " << e.GetMessage() << std::endl;
+    return -1;
+  }
 }

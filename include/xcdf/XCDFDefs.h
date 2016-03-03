@@ -95,6 +95,12 @@ class XCDFException {
   std::cerr << "XCDF WARNING: " << s.rdbuf()->str() << std::endl;     \
 }
 
+#define XCDFThrow(message) {                                          \
+  std::stringstream s;                                                \
+  s << message;                                                       \
+  throw XCDFException(s.rdbuf()->str());                              \
+}
+
 template <typename T, typename U>
 U XCDFSafeTypePun(const T data) {
   U out;
