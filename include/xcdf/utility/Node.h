@@ -46,8 +46,11 @@ class Node : public Symbol {
 
     // Set no parent by default
     virtual bool HasParent() const {return false;}
+    virtual bool HasGrandparent() const {return false;}
     virtual const std::string& GetParentName() const {return NO_PARENT;}
+    virtual const std::string& GetGrandparentName() const {return NO_PARENT;}
     virtual const std::string& GetName() const {return NO_PARENT;}
+    virtual unsigned GetParentIndex(unsigned index) const {return 0;}
 };
 
 template <> inline
@@ -67,6 +70,8 @@ enum NodeRelationType {
   SCALAR_FIRST,
   SCALAR_SECOND,
   VECTOR_VECTOR,
+  PARENT_FIRST,
+  PARENT_SECOND
 };
 
 /*
@@ -95,6 +100,22 @@ NodeRelationType GetRelationType(const Node<T>& n1, const Node<U>& n2) {
   // both fields have a parent
   if (n1.GetParentName() == n2.GetParentName()) {
     return VECTOR_VECTOR;
+  }
+  if (n1.GetName() == n2.GetParentName()) {
+    // n1 is the parent of n2
+    return PARENT_FIRST;
+  }
+  if (n2.HasGrandparent() && n2.GetGrandparentName() == n1.GetParentName()) {
+    // n1 is a sibling of n2's parent
+    return PARENT_FIRST;
+  }
+  if (n1.GetParentName() == n2.GetName()) {
+    // n2 is the parent of n1
+    return PARENT_SECOND;
+  }
+  if (n1.HasGrandparent() && n1.GetGrandparentName() == n2.GetParentName()) {
+    // n2 is a sibling of n1's parent
+    return PARENT_SECOND;
   }
 
   // Don't use XCDFFatal here, since we may want to catch this

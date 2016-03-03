@@ -44,9 +44,43 @@ class FieldNode : public Node<T> {
     T operator[](unsigned index) const {return field_[index];}
     unsigned GetSize() const {return field_.GetSize();}
 
+
     bool HasParent() const {return field_.HasParent();}
+    bool HasGrandparent() const {
+      if (!HasParent()) {
+        return false;
+      }
+      return field_.GetParent().HasParent();
+    }
     const std::string& GetParentName() const {return field_.GetParentName();}
     const std::string& GetName() const {return field_.GetName();}
+    const std::string& GetGrandparentName() const {
+      return field_.GetParent().GetParentName();
+    }
+
+    /*
+     *  For the given field index, find the corresponding index of the
+     *  parent.  If the field is 1D, this will always be 0.  Iterating
+     *  through all indexes is O(n*m).  We could do it in O(n*log(m)) with
+     *  some effort.
+     */
+    unsigned GetParentIndex(unsigned index) {
+      ConstXCDFUnsignedIntegerField parent = field_.GetParent();
+      unsigned count = 0;
+      for (unsigned pidx = 0; pidx < parent.GetSize(); ++pidx) {
+        count += parent[pidx];
+        if (count > index) {
+          return pidx;
+        }
+      }
+
+      // We didn't find the index.
+      XCDFFatal("Unable to retrieve index " << index <<
+                              " from field " << GetName());
+
+      // Unreachable
+      return 0;
+    }
 
   private:
 
@@ -193,8 +227,12 @@ class UnaryNode : public Node<ReturnType> {
 
     unsigned GetSize() const {return node_.GetSize();}
     bool HasParent() const {return node_.HasParent();}
+    bool HasGrandparent() const {return node_.HasGrandparent();}
     const std::string& GetParentName() const {return node_.GetParentName();}
     const std::string& GetName() const {return node_.GetName();}
+    const std::string& GetGrandparentName() const {
+      return node_.GetGrandparentName();
+    }
 
   private:
 

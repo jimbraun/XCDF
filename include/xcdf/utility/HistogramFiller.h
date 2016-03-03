@@ -162,7 +162,6 @@ class Filler1D {
         filler = DynamicFiller1DPtr(new AnyFiller1D(xne, wne));
       }
 
-
       while (f.Read()) {
         filler->Fill(h);
       }
