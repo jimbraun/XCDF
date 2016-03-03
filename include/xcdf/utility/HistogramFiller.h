@@ -94,22 +94,6 @@ class Vector12Filler1D : public DynamicFiller1D {
     }
 };
 
-class AnyFiller1D : public DynamicFiller1D {
-
-  public:
-
-    AnyFiller1D(const NumericalExpression<double>& ne1,
-                const NumericalExpression<double>& ne2) :
-                                      DynamicFiller1D(ne1, ne2) { }
-    void Fill(Histogram1D& h) const {
-      for (unsigned i = 0; i < ne1_.GetSize(); ++i) {
-        for (unsigned j = 0; j < ne2_.GetSize(); ++j) {
-          h.Fill(ne1_.Evaluate(i), ne2_.Evaluate(j));
-        }
-      }
-    }
-};
-
 typedef XCDFPtr<DynamicFiller1D> DynamicFiller1DPtr;
 
 struct FillXY {
@@ -154,14 +138,8 @@ class Filler1D {
       NumericalExpression<double> wne(wExpr_, f);
 
       // Get the filler appropriate to the relation between the two nodes
-      DynamicFiller1DPtr filler;
-      try {
-        filler = GetFiller(xne.GetNodeRelationType(wne), xne, wne);
-      } catch (XCDFException& e) {
-        // We can still make the histogram by drawing all against all
-        filler = DynamicFiller1DPtr(new AnyFiller1D(xne, wne));
-      }
-
+      DynamicFiller1DPtr filler =
+               GetFiller(xne.GetNodeRelationType(wne), xne, wne);
 
       while (f.Read()) {
         filler->Fill(h);
@@ -253,26 +231,6 @@ class Vector123Filler2D : public DynamicFiller2D {
     void Fill(Histogram2D& h) const {
       for (unsigned i = 0; i < ne1_.GetSize(); ++i) {
         h.Fill(ne1_.Evaluate(i), ne2_.Evaluate(i), ne3_.Evaluate(i));
-      }
-    }
-};
-
-class AnyFiller2D : public DynamicFiller2D {
-
-  public:
-
-    AnyFiller2D(const NumericalExpression<double>& ne1,
-                const NumericalExpression<double>& ne2,
-                const NumericalExpression<double>& ne3) :
-                             DynamicFiller2D(ne1, ne2, ne3) { }
-
-    void Fill(Histogram2D& h) const {
-      for (unsigned i = 0; i < ne1_.GetSize(); ++i) {
-        for (unsigned j = 0; j < ne2_.GetSize(); ++j) {
-          for (unsigned k = 0; k < ne3_.GetSize(); ++k) {
-            h.Fill(ne1_.Evaluate(i), ne2_.Evaluate(j), ne3_.Evaluate(k));
-          }
-        }
       }
     }
 };
@@ -380,16 +338,10 @@ class Filler2D {
       // Check the relation between two axis nodes and the weight node
       // Important to get all 3 relations to ensure the fields can all
       // be compared.
-      DynamicFiller2DPtr filler;
-
-      try {
-        filler = GetFiller(xne.GetNodeRelationType(yne),
+      DynamicFiller2DPtr filler =
+                 GetFiller(xne.GetNodeRelationType(yne),
                            xne.GetNodeRelationType(wne),
                            yne.GetNodeRelationType(wne), xne, yne, wne);
-      } catch (XCDFException& e) {
-        // We can still make the histogram by drawing all,all against all
-        filler = DynamicFiller2DPtr(new AnyFiller2D(xne, yne, wne));
-      }
 
       while (f.Read()) {
         filler->Fill(h);
