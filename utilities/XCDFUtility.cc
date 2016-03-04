@@ -297,7 +297,8 @@ void SelectFields(std::vector<std::string>& infiles,
 
   XCDFFile outFile(out);
   outFile.AddComment(concatArgs);
-  std::set<std::string> fields = ParseCSV(exp);
+  std::set<std::string> fieldSpecs = ParseCSV(exp);
+  std::set<std::string> fields;
 
   FieldCopyBuffer buf(outFile);
 
@@ -314,6 +315,17 @@ void SelectFields(std::vector<std::string>& infiles,
       }
     } else {
       f.Open(infiles[i], "r");
+    }
+
+    // Build the list of fields
+    if (fields.size() == 0) {
+      MatchFieldsVisitor match(fieldSpecs);
+      f.ApplyFieldVisitor(match);
+      fields = match.GetMatches();
+      if (fields.size() == 0) {
+        XCDFFatal("Unable to match any fields from expression \"" <<
+                                                         exp << "\"");
+      }
     }
 
     // Check that the file contains all the fields
@@ -923,7 +935,9 @@ void PrintUsage() {
 
     "                    Copy the given fields and write the result to a\n" <<
     "                    new XCDF file at the path specified by\n" <<
-    "                    {-o outfile}, or stdout if outfile is unspecified.\n\n" <<
+    "                    {-o outfile}, or stdout if outfile is unspecified.\n" <<
+    "                    A wildcard \'*\' character is allowed in matching\n" <<
+    "                    field names.\n\n" <<
 
     "    select \"boolean expression\" {-o outfile} {infiles}:\n\n" <<
 
