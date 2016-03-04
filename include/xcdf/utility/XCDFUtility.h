@@ -34,6 +34,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <iostream>
 #include <iomanip>
 #include <utility>
+#include <algorithm>
 #include <set>
 
 /*!
@@ -56,6 +57,70 @@ class DumpFieldVisitor {
         std::cout << std::setprecision(10) << *it << " ";
       }
       std::cout << std::endl;
+    }
+};
+
+class MatchFieldsVisitor {
+  public:
+
+    MatchFieldsVisitor(const std::set<std::string>& fieldSpecs) :
+                                              fieldSpecs_(fieldSpecs) { }
+
+    template <typename T>
+    void operator()(const XCDFField<T>& field) {
+
+      const std::string& name = field.GetName();
+      for (std::set<std::string>::const_iterator
+                              it = fieldSpecs_.begin();
+                              it != fieldSpecs_.end(); ++it) {
+
+        if (Match(*it, name)) {
+          fieldMatches_.insert(name);
+          break;
+        }
+      }
+
+    }
+
+    const std::set<std::string>& GetMatches() const {return fieldMatches_;}
+
+  private:
+
+    std::set<std::string> fieldSpecs_;
+    std::set<std::string> fieldMatches_;
+
+    bool DoMatch(const std::string& spec, const std::string& name) {
+
+      // Find the '*' character.  Match up to that point.
+      size_t wpos = std::distance(spec.begin(),
+                                  std::find(spec.begin(), spec.end(), '*'));
+      return !(name.compare(0, wpos, spec, 0, wpos));
+    }
+
+    // Match spec against name.  Make copies.
+    bool Match(std::string spec, std::string name) {
+
+      // First check for a match
+      if (spec == name) {
+        return true;
+      }
+
+      // First count wildcards
+      size_t wcnt = std::count(spec.begin(), spec.end(), '*');
+      if (wcnt > 1) {
+        XCDFFatal("Too many wildcards: " << spec);
+      }
+      if (wcnt == 1) {
+
+        // Match forward and reverse, relative to the wildcard.
+        if (!DoMatch(spec, name)) {
+          return false;
+        }
+        std::reverse(name.begin(), name.end());
+        std::reverse(spec.begin(), spec.end());
+        return DoMatch(spec, name);
+      }
+      return false;
     }
 };
 
