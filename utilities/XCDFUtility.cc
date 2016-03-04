@@ -935,9 +935,9 @@ void PrintUsage() {
 
     "                    Copy the given fields and write the result to a\n" <<
     "                    new XCDF file at the path specified by\n" <<
-    "                    {-o outfile}, or stdout if outfile is unspecified." <<
-    "                    A wildcard \'*\' character is allowed in matching" <<
-    "                    field names\n\n" <<
+    "                    {-o outfile}, or stdout if outfile is unspecified.\n" <<
+    "                    A wildcard \'*\' character is allowed in matching\n" <<
+    "                    field names.\n\n" <<
 
     "    select \"boolean expression\" {-o outfile} {infiles}:\n\n" <<
 
