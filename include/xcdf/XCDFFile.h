@@ -573,7 +573,6 @@ class XCDFFile {
     bool isAppend_;
     bool recover_;
     std::string currentFileName_;
-    bool writeDeflate_;
 
     // State of field global data
     bool unusableGlobalsFromFile_;

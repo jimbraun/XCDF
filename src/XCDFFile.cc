@@ -56,7 +56,6 @@ void XCDFFile::Init() {
   currentFrameEndOffset_ = 0;
 
   currentFileName_ = "";
-  writeDeflate_ = false;
 }
 
 /*
@@ -153,9 +152,6 @@ bool XCDFFile::Open(const char* fileName,
   recover_ = strchr(mode, 'c') || strchr(mode, 'C');
   isRead = isRead || recover_;
   bool isWrite = strchr(mode, 'w') || strchr(mode, 'W');
-  if (strchr(mode, 'z') || strchr(mode, 'Z')) {
-    writeDeflate_ = true;
-  }
   bool isAppend = strchr(mode, 'a') || strchr(mode, 'A');
 
   bool incl = isRead || isWrite || isAppend;
@@ -335,17 +331,17 @@ void XCDFFile::WriteFrame() {
 
   assert(IsWritable());
 
-  std::ostream& ostream = streamHandler_.GetOutputStream();
+  bool writeDeflate = true;
+  // don't deflate file headers, since they will be rewritten and must
+  // be the same size
+  if (currentFrame_.GetType() == XCDF_FILE_HEADER) {
+    writeDeflate = false;
+  }
 
+  std::ostream& ostream = streamHandler_.GetOutputStream();
   // Save start-of-frame file pointer
   currentFrameStartOffset_ = ostream.tellp();
   try {
-    bool writeDeflate = writeDeflate_;
-    // don't deflate file headers, since they will be rewritten and must
-    // be the same size
-    if (currentFrame_.GetType() == XCDF_FILE_HEADER) {
-      writeDeflate = false;
-    }
     currentFrame_.Write(ostream, writeDeflate);
   } catch (std::ostream::failure& e) {
     ostream.setstate(std::ostream::failbit);
