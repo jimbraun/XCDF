@@ -331,12 +331,18 @@ void XCDFFile::WriteFrame() {
 
   assert(IsWritable());
 
-  std::ostream& ostream = streamHandler_.GetOutputStream();
+  bool writeDeflate = true;
+  // don't deflate file headers, since they will be rewritten and must
+  // be the same size
+  if (currentFrame_.GetType() == XCDF_FILE_HEADER) {
+    writeDeflate = false;
+  }
 
+  std::ostream& ostream = streamHandler_.GetOutputStream();
   // Save start-of-frame file pointer
   currentFrameStartOffset_ = ostream.tellp();
   try {
-    currentFrame_.Write(ostream);
+    currentFrame_.Write(ostream, writeDeflate);
   } catch (std::ostream::failure& e) {
     ostream.setstate(std::ostream::failbit);
   }
@@ -347,7 +353,6 @@ void XCDFFile::WriteFrame() {
   if (ostream.fail()) {
     XCDFFatal("Write failed.  Byte offset: " << ostream.tellp());
   }
-  currentFrame_.Clear();
 }
 
 /*
@@ -358,8 +363,6 @@ void XCDFFile::ReadFrame() {
   assert(IsReadable());
 
   std::istream& istream = streamHandler_.GetInputStream();
-
-  currentFrame_.Clear();
 
   // Save start-of-frame file pointer
   currentFrameStartOffset_ = istream.tellg();

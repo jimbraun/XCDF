@@ -46,19 +46,22 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * big-endian machines.
  */
 
+inline
+bool TestBigEndian() {
+  // Check machine endianness
+  uint32_t test = 0x1;
+  if (*reinterpret_cast<char*>(&test) == 0x1) {
+    return false;
+  }
+  return true;
+}
+
 class XCDFFrame {
 
   public:
 
-    XCDFFrame() {
-
-      // Check machine endianness
-      machineIsBigEndian_ = true;
-      uint32_t test = 0x1;
-      if (*reinterpret_cast<char*>(&test) == 0x1) {
-        machineIsBigEndian_ = false;
-      }
-    }
+    XCDFFrame() : type_(NONE),
+                  machineIsBigEndian_(TestBigEndian()) { }
 
     ~XCDFFrame() { }
 
@@ -67,25 +70,41 @@ class XCDFFrame {
     XCDFFrameType GetType() const {return type_;}
     void SetType(const XCDFFrameType type) {type_ = type;}
 
-    void Write(std::ostream& o) {
+    void Write(std::ostream& o, bool deflate) {
 
+      if (deflate) {
+        buffer_.Deflate();
+      }
+
+      uint32_t deflatedType = XCDF_DEFLATED_FRAME;
       uint32_t type = type_;
       uint32_t size = buffer_.GetSize();
-      uint32_t checksum = CalculateChecksum();
+      uint32_t checksum = buffer_.CalculateChecksum();
 
       if (IsBigEndian()) {
+        ConvertEndian(deflatedType);
         ConvertEndian(size);
         ConvertEndian(type);
         ConvertEndian(checksum);
       }
 
-      o.write(reinterpret_cast<char*>(&type), 4);
-      o.write(reinterpret_cast<char*>(&size), 4);
-      o.write(reinterpret_cast<char*>(&checksum), 4);
+      if (deflate) {
+        o.write(reinterpret_cast<char*>(&deflatedType), 4);
+        o.write(reinterpret_cast<char*>(&size), 4);
+        o.write(reinterpret_cast<char*>(&checksum), 4);
+        o.write(reinterpret_cast<char*>(&type), 4);
+      } else {
+        o.write(reinterpret_cast<char*>(&type), 4);
+        o.write(reinterpret_cast<char*>(&size), 4);
+        o.write(reinterpret_cast<char*>(&checksum), 4);
+      }
 
       if (buffer_.GetSize() > 0) {
-        o.write(buffer_.Get(buffer_.GetSize(), 0), buffer_.GetSize());
+        o.write(reinterpret_cast<char*>(buffer_.GetBuffer()),
+                buffer_.GetSize());
       }
+
+      buffer_.Clear();
     }
 
     // Verify frame type before allocating and reading data
@@ -96,17 +115,26 @@ class XCDFFrame {
       i.read(reinterpret_cast<char*>(&size), 4);
       i.read(reinterpret_cast<char*>(&checksum), 4);
 
-      if (i.fail()) {
-        return;
-      }
-
       if (IsBigEndian()) {
-        ConvertEndian(size);
         ConvertEndian(type);
+        ConvertEndian(size);
         ConvertEndian(checksum);
       }
 
+      bool deflated = false;
+      if (static_cast<XCDFFrameType>(type) == XCDF_DEFLATED_FRAME) {
+        deflated = true;
+        i.read(reinterpret_cast<char*>(&type), 4);
+        if (IsBigEndian()) {
+          ConvertEndian(type);
+        }
+      }
+
       type_ = static_cast<XCDFFrameType>(type);
+
+      if (i.fail()) {
+        return;
+      }
 
       // Ensure type is valid before allocating memory
       if (!XCDFFrameTypeValid(type_)) {
@@ -116,49 +144,51 @@ class XCDFFrame {
       // If size field is corrupt, this could potentially allocate 4GB.
       // Ignore.  Checksum should fail and program should end.
       buffer_.Clear();
-      buffer_.Reserve(size);
+      buffer_.Resize(size);
       if (size > 0) {
-        i.read(buffer_.Get(), size);
+        i.read(reinterpret_cast<char*>(buffer_.GetBuffer()), size);
       }
 
       if (i.fail()) {
         return;
       }
 
-      buffer_.SetSize(size);
-
-      if (checksum != CalculateChecksum()) {
+      if (checksum != buffer_.CalculateChecksum()) {
         XCDFError("Frame data checksum failed");
         i.setstate(std::istream::failbit);
       }
+
+      if (deflated) {
+        buffer_.Inflate();
+      }
     }
 
-    void Clear() {buffer_.Clear();}
-
-    void PutChar(char datum) {buffer_.Insert(1, &datum);}
+    void PutChar(char datum) {
+      buffer_.Insert(1, reinterpret_cast<uint8_t*>(&datum));
+    }
 
     void PutUnsigned32(uint32_t datum) {
       if (IsBigEndian()) {
         ConvertEndian(datum);
       }
-      buffer_.Insert(4, reinterpret_cast<char*>(&datum));
+      buffer_.Insert(4, reinterpret_cast<uint8_t*>(&datum));
     }
 
     void PutUnsigned64(uint64_t datum) {
       if (IsBigEndian()) {
         ConvertEndian(datum);
       }
-      buffer_.Insert(8, reinterpret_cast<char*>(&datum));
+      buffer_.Insert(8, reinterpret_cast<uint8_t*>(&datum));
     }
 
     void PutString(const std::string& string) {
       // Include a NUL terminating character
       uint32_t size = string.size() + 1;
       PutUnsigned32(size);
-      buffer_.Insert(size, string.c_str());
+      buffer_.Insert(size, reinterpret_cast<const uint8_t*>(string.c_str()));
     }
 
-    char GetChar() {return *(buffer_.Get(1));}
+    char GetChar() {return *reinterpret_cast<const char*>(buffer_.Get(1));}
 
     uint32_t GetUnsigned32() {
       uint32_t datum = *reinterpret_cast<const uint32_t*>(buffer_.Get(4));
@@ -178,11 +208,21 @@ class XCDFFrame {
 
     const char* GetString() {
       uint32_t size = GetUnsigned32();
-      return buffer_.Get(size);
+      return reinterpret_cast<const char*>(buffer_.Get(size));
     }
 
-    const char* GetData() const {return buffer_.Get(buffer_.GetSize(), 0);}
-    void PutData(uint32_t size, char* data) {buffer_.Insert(size, data);}
+    void Clear() {buffer_.Clear();}
+
+    const char* GetData() {
+      if (buffer_.GetSize() == 0) {
+        return NULL;
+      }
+      return reinterpret_cast<const char*>(buffer_.Get(buffer_.GetSize()));
+    }
+
+    void PutData(uint32_t size, char* data) {
+      buffer_.Insert(size, reinterpret_cast<const uint8_t*>(data));
+    }
     uint32_t GetDataSize() const {return buffer_.GetSize();}
 
   private:
@@ -191,18 +231,6 @@ class XCDFFrame {
     XCDFFrameBuffer buffer_;
 
     bool machineIsBigEndian_;
-
-    uint32_t CalculateChecksum() {
-
-      uint32_t value = adler32(0L, NULL, 0);
-
-      if (buffer_.GetSize() > 0) {
-        value = adler32(value,
-          reinterpret_cast<unsigned char*>(buffer_.Get()), buffer_.GetSize());
-      }
-
-      return value;
-    }
 
     void ConvertEndian(uint32_t& datum) const {
       datum = (datum>>24) |

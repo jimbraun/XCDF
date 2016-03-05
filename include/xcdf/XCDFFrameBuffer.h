@@ -28,6 +28,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define XCDF_FRAME_BUFFER_INCLUDED_H
 
 #include <xcdf/XCDFDefs.h>
+#include <xcdf/XCDFDeflate.h>
 
 #include <vector>
 #include <stdint.h>
@@ -43,54 +44,66 @@ class XCDFFrameBuffer {
 
   public:
 
-    XCDFFrameBuffer() : readIndex_(0),
-                        size_(0) {
-
-      // Ensure vector has an allocated backing array
-      data_.reserve(1);
-    }
-
+    XCDFFrameBuffer() : readIndex_(0) { }
     ~XCDFFrameBuffer() { }
 
-    char* Get() {return &data_[0];}
+    uint8_t* GetBuffer() {
+      if (GetSize() == 0) {
+        XCDFFatal("Getting data from an unallocated buffer");
+      }
+      return &(data_.front());
+    }
 
-    const char* Get(uint32_t size) {
+    const uint8_t* Get(uint32_t size) {
       uint32_t oldIndex = readIndex_;
       readIndex_ += size;
-      return Get(size, oldIndex);
-    }
-
-    const char* Get(uint32_t size, uint32_t offset) const {
-      if (offset + size > size_) {
-        XCDFFatal("Frame buffer underflow: Asking for size " << size
-                          << " position: " << offset << " size: " << size_);
+      if (readIndex_ > GetSize()) {
+        XCDFFatal("Frame buffer underflow");
       }
-      return &data_[offset];
+      return &data_[oldIndex];
     }
 
-    void Insert(const uint32_t size, const char* data) {
+    void Insert(const uint32_t size, const uint8_t* data) {
       data_.insert(data_.end(), data, data + size);
-      size_ = data_.size();
     }
 
     void Clear() {
       data_.clear();
       readIndex_ = 0;
-      size_ = 0;
     }
 
-    void Reserve(uint32_t size) {
-      data_.reserve(size);
+    void Deflate() {
+      std::vector<uint8_t> deflated;
+      DeflateVector(data_, deflated);
+      data_.swap(deflated);
+      readIndex_ = 0;
     }
 
-    uint32_t GetSize() const {return size_;}
-    void SetSize(const uint32_t size) {size_ = size;}
+    void Inflate() {
+      std::vector<uint8_t> inflated;
+      InflateVector(data_, inflated);
+      data_.swap(inflated);
+      readIndex_ = 0;
+    }
+
+    uint32_t CalculateChecksum() {
+
+      uint32_t value = adler32(0L, NULL, 0);
+      if (GetSize() > 0) {
+        value = adler32(value, GetBuffer(), GetSize());
+      }
+
+      return value;
+    }
+
+    void Reserve(uint32_t size) {data_.reserve(size);}
+    void Resize(uint32_t size) {data_.resize(size);}
+    uint32_t GetSize() const {return data_.size();}
 
   private:
 
-    std::vector<char> data_;
+    std::vector<uint8_t> data_;
     uint32_t readIndex_;
-    uint32_t size_;
 };
 
 #endif // XCDF_FRAME_BUFFER_INCLUDED_H
