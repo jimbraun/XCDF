@@ -31,7 +31,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 #include <xcdf/XCDFDefs.h>
 
-#define CHUNKSIZE 0x4000 // 16 k
+#define CHUNKSIZE 0x20000 // 128 k
 
 inline
 void DeflateVector(std::vector<uint8_t>& in, std::vector<uint8_t>& out) {
@@ -115,7 +115,10 @@ void InflateVector(std::vector<uint8_t>& in, std::vector<uint8_t>& out) {
       strm.avail_out = CHUNKSIZE;
       strm.next_out = output;
       status = inflate(&strm, Z_NO_FLUSH);
-      if (!(status == Z_OK || status == Z_STREAM_END)) {
+      // Z_BUF_ERROR is OK: Just feed more input
+      if (!(status == Z_OK ||
+            status == Z_STREAM_END ||
+            status == Z_BUF_ERROR)) {
         XCDFFatal("Error decompressing input buffer: " << status);
       }
       size_t outputSize = CHUNKSIZE - strm.avail_out;
