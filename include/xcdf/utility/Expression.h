@@ -36,6 +36,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <sstream>
 #include <cctype>
 
+// Forward-declare XCDFFile to avoid circular dependency introduced
+// with XCDFFieldAlias.  There should be a cleaner way to code this.
+class XCDFFile;
+
 class Expression {
 
   public:

@@ -33,9 +33,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <stdint.h>
 
-template <typename T>
-class XCDFFieldData;
-
 /*!
  * @class XCDFField
  * @author Jim Braun

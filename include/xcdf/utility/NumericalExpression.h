@@ -36,6 +36,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <cassert>
 #include <sstream>
 
+// Forward-declare XCDFFile to avoid circular dependency introduced
+// with XCDFFieldAlias.  There should be a cleaner way to code this.
+class XCDFFile;
+
 template <typename R>
 class NumericalExpression {
 
@@ -84,6 +88,8 @@ class NumericalExpression {
     NodeRelationType GetNodeRelationType(const NumericalExpression& ex) const {
       return GetRelationType(*masterNode_, *(ex.masterNode_));
     }
+
+    Node<R>* GetHeadNode() const {return *masterNode_;}
 
   private:
 

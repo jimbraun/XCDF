@@ -27,12 +27,15 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef XCDF_UTILITY_NODE_DEFS_H_INCLUDED
 #define XCDF_UTILITY_NODE_DEFS_H_INCLUDED
 
-#include <xcdf/XCDF.h>
 #include <xcdf/utility/Node.h>
 
 #include <cmath>
 #include <algorithm>
 #include <set>
+
+// Forward-declare XCDFFile to avoid circular dependency introduced
+// with XCDFFieldAlias.  There should be a cleaner way to code this.
+class XCDFFile;
 
 template <typename T>
 class FieldNode : public Node<T> {
