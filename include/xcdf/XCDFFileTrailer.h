@@ -29,6 +29,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <xcdf/XCDFBlockEntry.h>
 #include <xcdf/XCDFFieldGlobals.h>
+#include <xcdf/alias/XCDFAliasDescriptor.h>
 #include <xcdf/XCDFDefs.h>
 
 #include <vector>
@@ -120,7 +121,27 @@ class XCDFFileTrailer {
       return globals_.end();
     }
 
+    bool HasAliasDescriptor(const XCDFAliasDescriptor& d) {
+      return std::find(aliasDescriptors_.begin(),
+                       aliasDescriptors_.end(), d) != aliasDescriptors_.end();
+    }
+
+    void AddAliasDescriptor(const XCDFAliasDescriptor& d) {
+      if (!HasAliasDescriptor(d)) {
+        aliasDescriptors_.push_back(d);
+      }
+    }
+
+    std::vector<XCDFAliasDescriptor>::const_iterator
+    AliasDescriptorsBegin() const {return aliasDescriptors_.begin();}
+
+    std::vector<XCDFAliasDescriptor>::const_iterator
+    AliasDescriptorsEnd() const {return aliasDescriptors_.end();}
+
+    uint32_t GetNAliasDescriptors() const {return aliasDescriptors_.size();}
+
     void ClearGlobals() {globals_.clear();}
+    void ClearAliasDescriptors() {aliasDescriptors_.clear();}
 
     uint32_t GetNComments() const {return comments_.size();}
 
@@ -159,6 +180,15 @@ class XCDFFileTrailer {
           globals.globalsSet_ = frame.GetChar();
           globals_.push_back(globals);
         }
+
+        uint32_t nAliases = frame.GetUnsigned32();
+        XCDFAliasDescriptor descriptor;
+        for (unsigned i = 0; i < nAliases; ++i) {
+          descriptor.SetName(frame.GetString());
+          descriptor.SetExpression(frame.GetString());
+          descriptor.SetType(XCDFFieldType(frame.GetChar()));
+          aliasDescriptors_.push_back(descriptor);
+        }
       }
     }
 
@@ -193,6 +223,15 @@ class XCDFFileTrailer {
         frame.PutUnsigned64(it->totalBytes_);
         frame.PutChar(it->globalsSet_);
       }
+
+      frame.PutUnsigned32(aliasDescriptors_.size());
+      for (std::vector<XCDFAliasDescriptor>::const_iterator
+                         it = aliasDescriptors_.begin();
+                         it != aliasDescriptors_.end(); ++it) {
+        frame.PutString(it->GetName());
+        frame.PutString(it->GetExpression());
+        frame.PutChar(it->GetType());
+      }
     }
 
   private:
@@ -201,6 +240,7 @@ class XCDFFileTrailer {
     std::vector<XCDFBlockEntry> blockEntries_;
     std::vector<std::string> comments_;
     std::vector<XCDFFieldGlobals> globals_;
+    std::vector<XCDFAliasDescriptor> aliasDescriptors_;
 
     bool blockTableEnabled_;
 };

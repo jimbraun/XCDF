@@ -28,6 +28,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <xcdf/alias/XCDFFieldAlias.h>
 #include <xcdf/alias/XCDFFieldAliasBase.h>
+#include <xcdf/alias/XCDFAliasDescriptor.h>
 #include <xcdf/utility/NumericalExpression.h>
 #include <xcdf/utility/Expression.h>
 
@@ -41,7 +42,7 @@ DoAllocateFieldAlias(const std::string& name,
 
   NumericalExpression<T> ne = NumericalExpression<T>(expression, f);
   return XCDFFieldAliasBasePtr(
-               new XCDFFieldAlias<double>(name, expression, ne));
+               new XCDFFieldAlias<T>(name, expression, ne));
 }
 
 inline
@@ -53,6 +54,7 @@ AllocateFieldAlias(const std::string& name,
   Expression fieldExp = Expression(expression, f);
   Symbol* start = fieldExp.GetHeadSymbol();
   switch (start->GetType()) {
+    default:
     case FLOATING_POINT_NODE:
              return DoAllocateFieldAlias<double>(name, expression, f);
     case SIGNED_NODE:
@@ -60,6 +62,47 @@ AllocateFieldAlias(const std::string& name,
     case UNSIGNED_NODE:
              return DoAllocateFieldAlias<uint64_t>(name, expression, f);
   }
+}
+
+inline
+XCDFAliasDescriptor
+GetXCDFAliasDescriptor(const XCDFFieldAliasBase& base) {
+  return XCDFAliasDescriptor(base.GetName(),
+                             base.GetExpression(),
+                             base.GetType());
+}
+
+template <typename T>
+void CheckConvertible(const XCDFFieldAliasBase& base);
+
+template<>
+inline
+void CheckConvertible<uint64_t>(const XCDFFieldAliasBase& base) {
+  if (base.GetType() != XCDF_UNSIGNED_INTEGER) {
+    XCDFFatal("Alias " << base.GetName() << " is not unsigned integer type");
+  }
+}
+
+template<>
+inline
+void CheckConvertible<int64_t>(const XCDFFieldAliasBase& base) {
+  if (base.GetType() != XCDF_SIGNED_INTEGER) {
+    XCDFFatal("Alias " << base.GetName() << " is not signed integer type");
+  }
+}
+
+template<>
+inline
+void CheckConvertible<double>(const XCDFFieldAliasBase& base) {
+  if (base.GetType() != XCDF_FLOATING_POINT) {
+    XCDFFatal("Alias " << base.GetName() << " is not floating point type");
+  }
+}
+
+template <typename T>
+const XCDFFieldAlias<T> CheckedGetAlias(const XCDFFieldAliasBase& base) {
+  CheckConvertible<T>(base);
+  return static_cast<const XCDFFieldAlias<T>&>(base);
 }
 
 #endif //XCDF_FIELD_ALIAS_ALLOCATOR_INCLUDED_H

@@ -42,49 +42,54 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 template <typename T>
-class XCDFFieldAlias : XCDFFieldAliasBase {
+class XCDFFieldAlias : public XCDFFieldAliasBase {
 
   public:
 
     XCDFFieldAlias(const std::string& name,
                    const std::string& expression,
-                   const NumericalExpression& ne) :
+                   const NumericalExpression<T>& ne) :
                               XCDFFieldAliasBase(name, expression),
                               expression_(ne) { }
 
     virtual XCDFFieldType GetType() const;
     const std::string& GetName() const {return name_;}
-    Node<T>* GetHeadNode() {return expression_.GetHeadNode();}
+
+    // This probably shouldn't be public
+    const Node<T>& GetHeadNode() const {return expression_.GetHeadNode();}
 
     /// Get the number of entries in the expression for the current event
     unsigned GetSize() const {return expression_.GetSize();}
 
     /// Get a value from the field
-    const T& At(const uint32_t index) const {return expression_.Evaluate(index);}
-    const T& operator[](const uint32_t index) const {
+    T At(const uint32_t index) const {return expression_.Evaluate(index);}
+    T operator[](const uint32_t index) const {
       return At(index);
     }
-    const T& operator*() const {return At(0);}
+    T operator*() const {return At(0);}
 
   private:
 
     std::string name_;
     std::string expString_;
-    NumericalExpression expression_;
+    NumericalExpression<T> expression_;
 };
 
 template<>
-virtual XCDFFieldType XCDFFieldAlias<uint64_t>::GetType() const {
+inline
+XCDFFieldType XCDFFieldAlias<uint64_t>::GetType() const {
   return XCDF_UNSIGNED_INTEGER;
 }
 
 template<>
-virtual XCDFFieldType XCDFFieldAlias<int64_t>::GetType() const {
+inline
+XCDFFieldType XCDFFieldAlias<int64_t>::GetType() const {
   return XCDF_SIGNED_INTEGER;
 }
 
 template<>
-virtual XCDFFieldType XCDFFieldAlias<double>::GetType() const {
+inline
+XCDFFieldType XCDFFieldAlias<double>::GetType() const {
   return XCDF_FLOATING_POINT;
 }
 
@@ -92,5 +97,9 @@ virtual XCDFFieldType XCDFFieldAlias<double>::GetType() const {
 typedef XCDFFieldAlias<uint64_t> XCDFUnsignedIntegerFieldAlias;
 typedef XCDFFieldAlias<int64_t>  XCDFSignedIntegerFieldAlias;
 typedef XCDFFieldAlias<double>   XCDFFloatingPointFieldAlias;
+
+typedef const XCDFFieldAlias<uint64_t> ConstXCDFUnsignedIntegerFieldAlias;
+typedef const XCDFFieldAlias<int64_t>  ConstXCDFSignedIntegerFieldAlias;
+typedef const XCDFFieldAlias<double>   ConstXCDFFloatingPointFieldAlias;
 
 #endif // XCDF_FIELD_ALIAS_INCLUDED_H

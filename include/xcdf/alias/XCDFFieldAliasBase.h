@@ -28,6 +28,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define XCDF_FIELD_ALIAS_BASE_INCLUDED_H
 
 #include <xcdf/XCDFDefs.h>
+#include <xcdf/XCDFPtr.h>
 
 #include <string>
 #include <stdint.h>
@@ -52,11 +53,22 @@ class XCDFFieldAliasBase {
     const std::string& GetName() const {return name_;}
     const std::string& GetExpression() const {return expression_;}
     virtual XCDFFieldType GetType() const = 0;
+    bool IsUnsignedIntegerAlias() const {
+      return GetType() == XCDF_UNSIGNED_INTEGER;
+    }
+
+    bool IsSignedIntegerAlias() const {
+      return GetType() == XCDF_SIGNED_INTEGER;
+    }
+
+    bool IsFloatingPointAlias() const {
+      return GetType() == XCDF_FLOATING_POINT;
+    }
 
   private:
 
-    std::string& name_;
-    std::string& expression_;
+    std::string name_;
+    std::string expression_;
 };
 
 typedef XCDFPtr<XCDFFieldAliasBase> XCDFFieldAliasBasePtr;

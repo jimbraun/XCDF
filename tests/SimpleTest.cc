@@ -52,6 +52,8 @@ int main(int argc, char** argv) {
   // 3D vector
   XCDFFloatingPointField field9 =
                   f.AllocateFloatingPointField("field9", 0.5, "field8");
+  // Header alias
+  f.CreateAlias("testAlias", "field1 + 1");
 
   field1 << 2;
   field2 << 1 << 1;
@@ -98,6 +100,9 @@ int main(int argc, char** argv) {
   }
 
   f.AddComment("test file");
+
+  // Trailer alias
+  f.CreateAlias("testTrailerAlias", "double(testAlias + 2)");
 
   f.Close();
 

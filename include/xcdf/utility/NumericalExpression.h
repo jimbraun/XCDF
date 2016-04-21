@@ -89,7 +89,7 @@ class NumericalExpression {
       return GetRelationType(*masterNode_, *(ex.masterNode_));
     }
 
-    Node<R>* GetHeadNode() const {return *masterNode_;}
+    const Node<R>& GetHeadNode() const {return *masterNode_;}
 
   private:
 

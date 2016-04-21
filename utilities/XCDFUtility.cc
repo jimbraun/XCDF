@@ -46,13 +46,13 @@ void Info(std::vector<std::string>& infiles) {
 
   std::cout << std::endl;
 
-  std::cout << std::setw(maxNameWidth) << "Field" << std::setw(17) <<
+  std::cout << std::setw(maxNameWidth) << "Field" << " " << std::setw(17) <<
              "Type" << " " << std::setw(11) << "Resolution" <<
                  std::setw(maxParentWidth) << "Parent" << " " <<
                  std::setw(10) << "Bytes" << " " << std::setw(10) <<
                  "Min" << " " << std::setw(10) << "Max" << std::endl;
 
-  std::cout << std::setw(maxNameWidth) << "-----" << std::setw(17) <<
+  std::cout << std::setw(maxNameWidth) << "-----" << " " << std::setw(17) <<
                "----" << " " << std::setw(11) << "----------" <<
                    std::setw(maxParentWidth) << "------" << " " <<
                    std::setw(10) << "----" << " " << std::setw(10) <<
@@ -62,7 +62,7 @@ void Info(std::vector<std::string>& infiles) {
                          it = f.FieldDescriptorsBegin();
                          it != f.FieldDescriptorsEnd(); ++it) {
 
-    std::cout << std::setw(maxNameWidth) << it->name_;
+    std::cout << std::setw(maxNameWidth) << it->name_ << " ";
 
     switch (it->type_) {
 
@@ -106,14 +106,58 @@ void Info(std::vector<std::string>& infiles) {
     std::cout << std::endl;
   }
 
-  std::cout << std::endl << "Entries: " << f.GetEventCount() << std::endl;
+  // Load the event count to force load any aliases in trailers
+  uint64_t eventCount = f.GetEventCount();
+
+  unsigned maxAliasNameWidth = 6;
+  for (std::vector<XCDFAliasDescriptor>::const_iterator
+                          it = f.AliasDescriptorsBegin();
+                          it != f.AliasDescriptorsEnd(); ++it) {
+
+     if ((it->GetName()).size() > maxAliasNameWidth) {
+       maxAliasNameWidth = (it->GetName()).size();
+     }
+  }
+
+  if (f.AliasDescriptorsBegin() != f.AliasDescriptorsEnd()) {
+    std::cout << "\n" << std::setw(maxAliasNameWidth) << "Alias" << " " <<
+                  std::setw(17) << "Type" << " " << "Expression" << std::endl;
+
+    std::cout << std::setw(maxAliasNameWidth) << "-----" << " " <<
+                    std::setw(17) << "----" << " " << "----------" << std::endl;
+
+    for (std::vector<XCDFAliasDescriptor>::const_iterator
+                            it = f.AliasDescriptorsBegin();
+                            it != f.AliasDescriptorsEnd(); ++it) {
+
+      std::cout << std::setw(maxAliasNameWidth) << it->GetName() << " ";
+
+      switch (it->GetType()) {
+
+        case XCDF_UNSIGNED_INTEGER:
+          std::cout << std::setw(17) << "Unsigned Integer" << " ";
+          break;
+        case XCDF_SIGNED_INTEGER:
+          std::cout << std::setw(17) << "Signed Integer" << " ";
+          break;
+        case XCDF_FLOATING_POINT:
+          std::cout << std::setw(17) << "Floating Point" << " ";
+          break;
+      }
+
+      std::cout << "'" << it->GetExpression() << "'" << std::endl;
+    }
+  }
+
+  std::cout << std::endl << "Entries: " << eventCount << std::endl;
 
   std::cout << std::endl << "Comments:" <<
                std::endl << "---------" << std::endl;
 
+  f.LoadComments();
   for (std::vector<std::string>::const_iterator
-                                   it = f.CommentsBegin(true);
-                                   it != f.CommentsEnd(true); ++it) {
+                                   it = f.CommentsBegin();
+                                   it != f.CommentsEnd(); ++it) {
     std::cout << *it << std::endl;
   }
 }
@@ -150,9 +194,10 @@ void Dump(std::vector<std::string>& infiles) {
     std::cout << std::endl << "Comments:" <<
                  std::endl << "---------" << std::endl;
 
+    f.LoadComments();
     for (std::vector<std::string>::const_iterator
-                                  it = f.CommentsBegin(true);
-                                  it != f.CommentsEnd(true); ++it) {
+                                  it = f.CommentsBegin();
+                                  it != f.CommentsEnd(); ++it) {
       std::cout << *it << std::endl;
     }
 
@@ -282,11 +327,28 @@ std::set<std::string> ParseCSV(std::string& exp) {
 void CopyComments(XCDFFile& destination,
                   XCDFFile& source) {
 
+  source.LoadComments();
   for (std::vector<std::string>::const_iterator
-                             it = source.CommentsBegin(true);
-                             it != source.CommentsEnd(true); ++it) {
+                             it = source.CommentsBegin();
+                             it != source.CommentsEnd(); ++it) {
 
     destination.AddComment(*it);
+  }
+}
+
+void CopyAliases(XCDFFile& destination,
+                 XCDFFile& source) {
+
+  for (std::vector<XCDFAliasDescriptor>::const_iterator
+                             it = source.AliasDescriptorsBegin();
+                             it != source.AliasDescriptorsEnd(); ++it) {
+
+    try {
+      // We might add duplicate aliases, so catch that here
+      if (!destination.HasAlias(it->GetName())) {
+        destination.CreateAlias(it->GetName(), it->GetExpression());
+      }
+    } catch (XCDFException& e) { }
   }
 }
 
@@ -390,6 +452,9 @@ void Select(std::vector<std::string>& infiles,
 
     EventSelectExpression expression(exp, f);
 
+    // Need to copy at beginning to ensure all known aliases are
+    // placed into the header of the new file if at all possible
+    CopyAliases(outFile, f);
     while (f.Read()) {
 
       // Check the expression; copy the data if true
@@ -400,6 +465,8 @@ void Select(std::vector<std::string>& infiles,
     }
 
     CopyComments(outFile, f);
+    // Copy any aliases unavailable at beginning
+    CopyAliases(outFile, f);
     f.Close();
   }
 
@@ -479,6 +546,7 @@ void Recover(std::vector<std::string>& infiles,
     SelectFieldVisitor selectFieldVisitor(f, fields, buf);
     f.ApplyFieldVisitor(selectFieldVisitor);
 
+    CopyAliases(outFile, f);
     while (f.Read()) {
 
       // Copy the data if true
@@ -492,6 +560,7 @@ void Recover(std::vector<std::string>& infiles,
 
   try {
     CopyComments(outFile, f);
+    CopyAliases(outFile, f);
     f.Close();
   } catch (XCDFException& e) { }
   outFile.Close();
@@ -523,12 +592,14 @@ void RemoveComments(std::vector<std::string>& infiles,
   SelectFieldVisitor selectFieldVisitor(f, fields, buf);
   f.ApplyFieldVisitor(selectFieldVisitor);
 
+  CopyAliases(outFile, f);
   while (f.Read()) {
 
     // Copy the data if true
     buf.CopyData();
     outFile.Write();
   }
+  CopyAliases(outFile, f);
   outFile.Close();
 }
 
@@ -559,6 +630,7 @@ void AddComment(std::vector<std::string>& infiles,
   SelectFieldVisitor selectFieldVisitor(f, fields, buf);
   f.ApplyFieldVisitor(selectFieldVisitor);
 
+  CopyAliases(outFile, f);
   while (f.Read()) {
 
     // Copy the data if true
@@ -568,6 +640,7 @@ void AddComment(std::vector<std::string>& infiles,
 
   CopyComments(outFile, f);
   outFile.AddComment(comment);
+  CopyAliases(outFile, f);
   outFile.Close();
 }
 
@@ -588,9 +661,10 @@ void Comments(std::vector<std::string>& infiles,
       f.Open(infiles[i], "r");
     }
 
+    f.LoadComments();
     for (std::vector<std::string>::const_iterator
-                                   it = f.CommentsBegin(true);
-                                   it != f.CommentsEnd(true); ++it) {
+                                   it = f.CommentsBegin();
+                                   it != f.CommentsEnd(); ++it) {
 
       out << *it << std::endl;
     }
@@ -870,6 +944,10 @@ void Paste(std::vector<std::string>& infiles,
   // Allocate the new fields
   CSVInputHandler csvIn(outFile, *currentInputStream, del);
 
+  if (f.IsOpen()) {
+    CopyAliases(outFile, f);
+  }
+
   while(csvIn.CopyLine()) {
     if (f.IsOpen()) {
       if (!f.Read()) {
@@ -892,6 +970,8 @@ void Paste(std::vector<std::string>& infiles,
       XCDFWarn("Input text file has fewer entries than " <<
                                              copyFile << " Truncating.");
     }
+    CopyComments(outFile, f);
+    CopyAliases(outFile, f);
     f.Close();
   }
   outFile.Close();
@@ -959,6 +1039,19 @@ void PrintUsage() {
     "                    specified but will default to commas if unspecified. \n\n" <<
 
     "    recover {-o outfile} {infiles} Recover a corrupt XCDF file.\n\n" <<
+
+    "    add-alias name \"expression\" {-o outfile} infile:\n\n" <<
+
+    "                    Add an alias to \"infile\" consisting of a numerical" <<
+    "                    expression.  The expression may contain fields, e.g." <<
+    "                    \'xcdf add-alias myAlias \"abs(field1)\" myFile.xcd" <<
+    "                    creates the alias \'myAlias\' that contains the absolute" <<
+    "                    value of XCDF field \'field1\'. \'myAlias\' may then be" <<
+    "                    selections and other expressions.  The alias is added" <<
+    "                    in-place to the existing file when possible if an output" <<
+    "                    file is not specified.  Note that aliases added in-place" <<
+    "                    are not available when reading an XCDF file using a" <<
+    "                    stream or pipe\n\n" <<
 
     "    histogram \"histogram expression\" {infiles}:\n\n" <<
     "                    Create a histogram from the selected files according to\n" <<

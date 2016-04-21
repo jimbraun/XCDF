@@ -27,6 +27,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef XCDF_FILE_INCLUDED_H
 #define XCDF_FILE_INCLUDED_H
 
+#include <xcdf/alias/XCDFFieldAliasAllocator.h>
+#include <xcdf/alias/XCDFFieldAlias.h>
+#include <xcdf/alias/XCDFFieldAliasBase.h>
+#include <xcdf/alias/XCDFAliasDescriptor.h>
+
 #include <xcdf/XCDFFrame.h>
 #include <xcdf/XCDFBlockData.h>
 #include <xcdf/XCDFBlockHeader.h>
@@ -216,7 +221,7 @@ class XCDFFile {
      */
     bool HasField(const std::string& name) const {
 
-      return findFieldByName(name) != fieldList_.end();
+      return FindFieldByName(name) != fieldList_.end();
     }
 
     /*
@@ -224,7 +229,7 @@ class XCDFFile {
      */
     bool IsVectorField(const std::string& name) const {
 
-      return (*findFieldByName(name, true))->HasParent();
+      return (*FindFieldByName(name, true))->HasParent();
     }
 
     /*
@@ -232,28 +237,28 @@ class XCDFFile {
      */
     std::string GetFieldParentName(const std::string& name) const {
 
-      return (*findFieldByName(name, true))->GetParentName();
+      return (*FindFieldByName(name, true))->GetParentName();
     }
 
     /*
      *  Check if a given field contains unsigned integer data
      */
     bool IsUnsignedIntegerField(const std::string& name) const {
-      return (*findFieldByName(name, true))->IsUnsignedIntegerField();
+      return (*FindFieldByName(name, true))->IsUnsignedIntegerField();
     }
 
     /*
      *  Check if a given field contains signed integer data
      */
     bool IsSignedIntegerField(const std::string& name) const {
-      return (*findFieldByName(name, true))->IsSignedIntegerField();
+      return (*FindFieldByName(name, true))->IsSignedIntegerField();
     }
 
     /*
      *  Check if a given field contains floating point data
      */
     bool IsFloatingPointField(const std::string& name) const {
-      return (*findFieldByName(name, true))->IsFloatingPointField();
+      return (*FindFieldByName(name, true))->IsFloatingPointField();
     }
 
     /*
@@ -262,33 +267,33 @@ class XCDFFile {
     ConstXCDFUnsignedIntegerField
     GetUnsignedIntegerField(const std::string& name) const {
       return XCDFFieldDataAllocator::GetUnsignedIntegerField(
-                                           **findFieldByName(name, true));
+                                           **FindFieldByName(name, true));
     }
     ConstXCDFSignedIntegerField
     GetSignedIntegerField(const std::string& name) const {
       return XCDFFieldDataAllocator::GetSignedIntegerField(
-                                           **findFieldByName(name, true));
+                                           **FindFieldByName(name, true));
     }
     ConstXCDFFloatingPointField
     GetFloatingPointField(const std::string& name) const {
       return XCDFFieldDataAllocator::GetFloatingPointField(
-                                           **findFieldByName(name, true));
+                                           **FindFieldByName(name, true));
     }
 
     XCDFUnsignedIntegerField
     GetUnsignedIntegerField(const std::string& name) {
       return XCDFFieldDataAllocator::GetUnsignedIntegerField(
-                                           **findFieldByName(name, true));
+                                           **FindFieldByName(name, true));
     }
     XCDFSignedIntegerField
     GetSignedIntegerField(const std::string& name) {
       return XCDFFieldDataAllocator::GetSignedIntegerField(
-                                           **findFieldByName(name, true));
+                                           **FindFieldByName(name, true));
     }
     XCDFFloatingPointField
     GetFloatingPointField(const std::string& name) {
       return XCDFFieldDataAllocator::GetFloatingPointField(
-                                           **findFieldByName(name, true));
+                                           **FindFieldByName(name, true));
     }
 
     std::vector<XCDFFieldDescriptor>::const_iterator
@@ -299,28 +304,28 @@ class XCDFFile {
 
     uint64_t GetFieldBytes(const std::string& name) {
       CheckGlobals();
-      return (*findFieldByName(name, true))->GetTotalBytes();
+      return (*FindFieldByName(name, true))->GetTotalBytes();
     }
 
     std::pair<uint64_t, uint64_t>
     GetUnsignedIntegerFieldRange(const std::string& name) {
       CheckGlobals();
       return XCDFFieldDataAllocator::GetUnsignedIntegerFieldRange(
-                                               **findFieldByName(name, true));
+                                               **FindFieldByName(name, true));
     }
 
     std::pair<int64_t, int64_t>
     GetSignedIntegerFieldRange(const std::string& name) {
       CheckGlobals();
       return XCDFFieldDataAllocator::GetSignedIntegerFieldRange(
-                                               **findFieldByName(name, true));
+                                               **FindFieldByName(name, true));
     }
 
     std::pair<double, double>
     GetFloatingPointFieldRange(const std::string& name) {
       CheckGlobals();
       return XCDFFieldDataAllocator::GetFloatingPointFieldRange(
-                                               **findFieldByName(name, true));
+                                               **FindFieldByName(name, true));
     }
 
 
@@ -371,29 +376,22 @@ class XCDFFile {
       AddComment(str.str());
     }
 
-    /// Get an iterator to the beginning of the comment list
-    /// Optional: Force load the comments at the end of a streaming
+    /// Force load the comments at the end of a streaming
     /// file if we don't already have them
-    std::vector<std::string>::const_iterator
-    CommentsBegin(bool forceLoad=false) {
-      if (!isModifiable_ && !blockTableComplete_ && forceLoad) {
+    void LoadComments() {
+      if (!isModifiable_ && !blockTableComplete_) {
         // Get the event count, causing all trailers to be read
         GetEventCount();
       }
-      return fileTrailer_.CommentsBegin();
     }
 
-    /// Get an iterator to the end of the comment list
-    /// Optional: Force load the comments at the end of a streaming
-    /// file if we don't already have them
+    /// Get an iterator to the beginning of the comment list
     std::vector<std::string>::const_iterator
-    CommentsEnd(bool forceLoad=false) {
-      if (!isModifiable_ && !blockTableComplete_ && forceLoad) {
-        // Get the event count, causing all trailers to be read
-        GetEventCount();
-      }
-      return fileTrailer_.CommentsEnd();
-    }
+    CommentsBegin() {return fileTrailer_.CommentsBegin();}
+
+    /// Get an iterator to the end of the comment list
+    std::vector<std::string>::const_iterator
+    CommentsEnd() {return fileTrailer_.CommentsEnd();}
 
     /// Get the number of comments
     /// Optional: Force load the comments at the end of a streaming
@@ -548,12 +546,64 @@ class XCDFFile {
       }
     }
 
+    void CreateAlias(const std::string& name, const std::string& expression) {
+      CheckName(name);
+      XCDFFieldAliasBasePtr ptr = AllocateFieldAlias(name, expression, *this);
+      aliasList_.push_back(ptr);
+      if (headerWritten_) {
+        fileTrailer_.AddAliasDescriptor(GetXCDFAliasDescriptor(*ptr));
+      } else {
+        fileHeader_.AddAliasDescriptor(GetXCDFAliasDescriptor(*ptr));
+      }
+    }
+
+    bool HasAlias(const std::string& name) const {
+      return FindAliasByName(name) != aliasList_.end();
+    }
+
+    bool IsUnsignedIntegerAlias(const std::string& name) const {
+      return (*FindAliasByName(name, true))->IsUnsignedIntegerAlias();
+    }
+
+    bool IsSignedIntegerAlias(const std::string& name) const {
+      return (*FindAliasByName(name, true))->IsSignedIntegerAlias();
+    }
+
+    bool IsFloatingPointAlias(const std::string& name) const {
+      return (*FindAliasByName(name, true))->IsFloatingPointAlias();
+    }
+
+    ConstXCDFUnsignedIntegerFieldAlias
+    GetUnsignedIntegerAlias(const std::string& name) const {
+      return CheckedGetAlias<uint64_t>(**FindAliasByName(name, true));
+    }
+
+    ConstXCDFSignedIntegerFieldAlias
+    GetSignedIntegerAlias(const std::string& name) const {
+      return CheckedGetAlias<int64_t>(**FindAliasByName(name, true));
+    }
+
+    ConstXCDFFloatingPointFieldAlias
+    GetFloatingPointAlias(const std::string& name) const {
+      return CheckedGetAlias<double>(**FindAliasByName(name, true));
+    }
+
+    std::vector<XCDFAliasDescriptor>::const_iterator
+    AliasDescriptorsBegin() const {return fileHeader_.AliasDescriptorsBegin();}
+
+    std::vector<XCDFAliasDescriptor>::const_iterator
+    AliasDescriptorsEnd() const {return fileHeader_.AliasDescriptorsEnd();}
+
   private:
 
     // Keep a vector of XCDFFieldData objects.  List order is read/write
     // order, so it must be preserved.
     typedef std::vector<XCDFFieldDataBasePtr> FieldList;
     FieldList fieldList_;
+
+    // Vector of XCDFFieldAliasBase objects.
+    typedef std::vector<XCDFFieldAliasBasePtr> AliasList;
+    AliasList aliasList_;
 
     // Configurable parameters
     uint64_t blockSize_;
@@ -616,27 +666,45 @@ class XCDFFile {
 
     const XCDFFieldDataBase*
     CheckParent(const std::string& parentName) const;
+    void CheckName(const std::string& name) const;
 
-    /// Helper class to match an XCDF field by name
-    class XCDFFieldNameMatch {
+    /// Helper class to match an XCDF field/alias by name
+    class XCDFNameMatch {
 
       public:
 
-        XCDFFieldNameMatch(const std::string& name) : name_(name) { }
+        XCDFNameMatch(const std::string& name) : name_(name) { }
         bool operator()(const XCDFFieldDataBasePtr& ptr) {
           return ptr->GetName() == name_;
+        }
+        bool operator()(const XCDFFieldAliasBasePtr& base) {
+          return base->GetName() == name_;
         }
 
       private:
         const std::string& name_;
     };
 
+    AliasList::const_iterator
+    FindAliasByName(const std::string& name,
+                    bool requirePresent = false) const {
+      AliasList::const_iterator it = std::find_if(aliasList_.begin(),
+                                                  aliasList_.end(),
+                                                  XCDFNameMatch(name));
+      if (requirePresent) {
+        if (it == aliasList_.end()) {
+          XCDFFatal("No such alias: " << name);
+        }
+      }
+      return it;
+    }
+
     FieldList::const_iterator
-    findFieldByName(const std::string& name,
+    FindFieldByName(const std::string& name,
                     bool requirePresent = false) const {
       FieldList::const_iterator it = std::find_if(fieldList_.begin(),
                                                   fieldList_.end(),
-                                                  XCDFFieldNameMatch(name));
+                                                  XCDFNameMatch(name));
       if (requirePresent) {
         if (it == fieldList_.end()) {
           XCDFFatal("No such field: " << name);
@@ -646,17 +714,42 @@ class XCDFFile {
     }
 
     FieldList::iterator
-    findFieldByName(const std::string& name,
+    FindFieldByName(const std::string& name,
                     bool requirePresent = false) {
       FieldList::iterator it = std::find_if(fieldList_.begin(),
                                             fieldList_.end(),
-                                            XCDFFieldNameMatch(name));
+                                            XCDFNameMatch(name));
       if (requirePresent) {
         if (it == fieldList_.end()) {
           XCDFFatal("No such field: " << name);
         }
       }
       return it;
+    }
+
+    template<typename T>
+    void LoadNewAliases(const T& t) {
+      for (std::vector<XCDFAliasDescriptor>::const_iterator
+                       it = t.AliasDescriptorsBegin();
+                       it != t.AliasDescriptorsEnd(); ++it) {
+        if (!fileHeader_.HasAliasDescriptor(*it)) {
+          fileHeader_.AddAliasDescriptor(*it);
+          XCDFFieldAliasBasePtr ptr =
+              AllocateFieldAlias(it->GetName(), it->GetExpression(), *this);
+          aliasList_.push_back(ptr);
+        }
+      }
+    }
+
+    template<typename T>
+    void LoadAliases(const T& t) {
+      for (std::vector<XCDFAliasDescriptor>::const_iterator
+                       it = t.AliasDescriptorsBegin();
+                       it != t.AliasDescriptorsEnd(); ++it) {
+        XCDFFieldAliasBasePtr ptr =
+            AllocateFieldAlias(it->GetName(), it->GetExpression(), *this);
+        aliasList_.push_back(ptr);
+      }
     }
 
     // Close-on-destruction behavior prevents assignment/copy construction

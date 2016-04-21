@@ -27,6 +27,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef XCDF_ALIAS_DESCRIPTOR_INCLUDED_H
 #define XCDF_ALIAS_DESCRIPTOR_INCLUDED_H
 
+#include <xcdf/XCDFDefs.h>
 #include <string>
 #include <stdint.h>
 
@@ -36,21 +37,36 @@ class XCDFAliasDescriptor {
   public:
 
     XCDFAliasDescriptor() : name_(""),
-                            expression_("") { }
+                            expression_(""),
+                            type_(XCDF_UNSIGNED_INTEGER) { }
 
     XCDFAliasDescriptor(const std::string& name,
-                        const std::string& expression) :
+                        const std::string& expression,
+                        XCDFFieldType type) :
                                              name_(name),
-                                             expression_(expression) { }
+                                             expression_(expression),
+                                             type_(type) { }
 
     ~XCDFAliasDescriptor() { }
 
     const std::string& GetName() const {return name_;}
     const std::string& GetExpression() const {return expression_;}
+    XCDFFieldType GetType() const {return type_;}
+
+    void SetName(const std::string& name) {name_ = name;}
+    void SetExpression(const std::string& expression) {
+      expression_ = expression;
+    }
+    void SetType(XCDFFieldType type) {type_ = type;}
 
     bool operator==(const XCDFAliasDescriptor& ad) const {
-      return name_ == ad.name_ &&
-             expression_ == ad.expression_;
+      // Use name only for equivalence/ordering
+      return name_ == ad.name_;
+    }
+
+    bool operator<(const XCDFAliasDescriptor& ad) const {
+      // Use name only for equivalence/ordering
+      return name_ < ad.name_;
     }
 
     bool operator!=(const XCDFAliasDescriptor& ad) const {
@@ -61,6 +77,7 @@ class XCDFAliasDescriptor {
 
     std::string name_;
     std::string expression_;
+    XCDFFieldType type_;
 };
 
 #endif // XCDF_ALIAS_DESCRIPTOR_INCLUDED_H

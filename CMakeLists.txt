@@ -37,6 +37,7 @@ INCLUDE (Python)
 
 INCLUDE_DIRECTORIES (${CMAKE_SOURCE_DIR}/include)
 INCLUDE_DIRECTORIES (${CMAKE_SOURCE_DIR}/include/utility)
+INCLUDE_DIRECTORIES (${CMAKE_SOURCE_DIR}/include/alias)
 INCLUDE_DIRECTORIES (${CMAKE_SOURCE_DIR}/src/pybindings)
 
 # ------------------------------------------------------------------------------

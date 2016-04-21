@@ -598,6 +598,7 @@ bool XCDFFile::ReadNextBlock() {
       currentFileStartOffset_ =  currentFrameEndOffset_;
       XCDFFileHeader tempHeader;
       LoadFileHeader(tempHeader);
+      LoadNewAliases(tempHeader);
 
       // Compare against original file header
       if (fileHeader_ != tempHeader) {
@@ -730,11 +731,15 @@ void XCDFFile::ReadFileHeaders() {
     AllocateField(it->name_, type, it->rawResolution_, it->parentName_);
   }
 
+  // Load any aliases
+  LoadAliases(fileHeader_);
+
   // Read the trailer if we have a pointer
   if (fileHeader_.HasFileTrailerPtr() && !recover_) {
     if (DoSeek(fileHeader_.GetFileTrailerPtr())) {
       LoadFileTrailer(fileTrailer_);
       SetGlobals(fileTrailer_);
+      LoadNewAliases(fileTrailer_);
       blockTableComplete_ = true;
     } else {
       blockTableComplete_ = false;
@@ -774,6 +779,7 @@ void XCDFFile::ReadFileHeaders() {
         if (DoSeek(fileStartPos + tempHeader.GetFileTrailerPtr())) {
 
           LoadFileTrailer(tempTrailer);
+          LoadNewAliases(tempTrailer);
           blockTableComplete_ = true;
         }
       } else {
@@ -819,8 +825,9 @@ void XCDFFile::LoadFileTrailer(XCDFFileTrailer& trailer) {
   }
 
   trailer.UnpackFrame(currentFrame_, fileHeader_.GetVersion());
-  blockTableComplete_ = true;
 }
+
+
 
 void XCDFFile::SetGlobals(const XCDFFileTrailer& trailer) {
   // Set field globals from the trailer data
@@ -1143,40 +1150,7 @@ void XCDFFile::AllocateField(const std::string& name,
                              const std::string& parentName,
                              bool writeHeader) {
 
-  // Check if we already have a field with the given name
-  if (HasField(name)) {
-    XCDFFatal("Cannot create field " << name << ": already exists");
-  }
-
-  // Check for illegal characters
-  if (name.find_first_of(",:+-/*%^)(\\\"=><&|!") != std::string::npos) {
-
-    XCDFFatal("Field name " << name << " contains unsupported" <<
-                                " characters: \",:+-/*%^)(\\\"=><&|!");
-  }
-
-  // Check for empty string
-  if (name.size() == 0) {
-    XCDFFatal("Field name cannot be an empty string");
-  }
-
-  // Check for leading/trailing whitespace
-  if (name.find_first_not_of(" \t\r\n") != 0 ||
-      name.find_last_not_of(" \t\r\n") != name.size() - 1) {
-    XCDFFatal("Field name " << name << " contains unsupported" <<
-                                    " leading or trailing white space");
-  }
-
-  char firstChar = name[0];
-  if (!isalpha(firstChar)) {
-    XCDFFatal("Field name " << name << " does not start with an" <<
-                                                " alphabetic character");
-  }
-
-  if (!name.compare("currentEventNumber")) {
-    XCDFFatal("Field name \"currentEventNumber\"" <<
-                         " is reserved and cannot be used.");
-  }
+  CheckName(name);
 
   const XCDFFieldDataBase* parent = NULL;
   if (parentName.compare(NO_PARENT)) {
@@ -1209,6 +1183,44 @@ void XCDFFile::AllocateField(const std::string& name,
       std::upper_bound(fieldList_.begin(), fieldList_.end(), type), ptr);
 }
 
+void XCDFFile::CheckName(const std::string& name) const {
+  // Ensure that a name is sane before using it for a field or alias
+  // Check if we already have a field with the given name
+  if (HasField(name) || HasAlias(name)) {
+    XCDFFatal("Cannot create field " << name << ": already exists");
+  }
+
+  // Check for illegal characters
+  if (name.find_first_of(",:+-/*%^)(\\\"=><&|!") != std::string::npos) {
+
+    XCDFFatal("Field name " << name << " contains unsupported" <<
+                                " characters: \",:+-/*%^)(\\\"=><&|!");
+  }
+
+  // Check for empty string
+  if (name.size() == 0) {
+    XCDFFatal("Field name cannot be an empty string");
+  }
+
+  // Check for leading/trailing whitespace
+  if (name.find_first_not_of(" \t\r\n") != 0 ||
+      name.find_last_not_of(" \t\r\n") != name.size() - 1) {
+    XCDFFatal("Field name " << name << " contains unsupported" <<
+                                    " leading or trailing white space");
+  }
+
+  char firstChar = name[0];
+  if (!isalpha(firstChar)) {
+    XCDFFatal("Field name " << name << " does not start with an" <<
+                                                " alphabetic character");
+  }
+
+  if (!name.compare("currentEventNumber")) {
+    XCDFFatal("Field name \"currentEventNumber\"" <<
+                         " is reserved and cannot be used.");
+  }
+}
+
 const XCDFFieldDataBase*
 XCDFFile::CheckParent(const std::string& parentName) const {
 
@@ -1219,7 +1231,7 @@ XCDFFile::CheckParent(const std::string& parentName) const {
     XCDFFatal("Parent field \"" << parentName <<
                                      "\" is not unsigned integer type");
   }
-  const XCDFFieldDataBase& parent = **findFieldByName(parentName, true);
+  const XCDFFieldDataBase& parent = **FindFieldByName(parentName, true);
   if (parent.GetRawResolution() != 1) {
     XCDFFatal("Parent field \"" << parentName << "\" must have resolution 1");
   }

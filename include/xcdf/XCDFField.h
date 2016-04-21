@@ -73,11 +73,11 @@ class ConstXCDFField {
     unsigned GetSize() const {return FieldData()->GetSize();}
 
     /// Get a value from the field
-    const T& At(const uint32_t index) const {return FieldData()->At(index);}
-    const T& operator[](const uint32_t index) const {
+    T At(const uint32_t index) const {return FieldData()->At(index);}
+    T operator[](const uint32_t index) const {
       return FieldData()->At(index);
     }
-    const T& operator*() const {return FieldData()->At(0);}
+    T operator*() const {return FieldData()->At(0);}
 
     /// Iterate over the field
     typedef typename XCDFFieldDataType::ConstIterator ConstIterator;

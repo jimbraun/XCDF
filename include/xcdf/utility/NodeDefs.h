@@ -33,29 +33,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <algorithm>
 #include <set>
 
-// Forward-declare XCDFFile to avoid circular dependency introduced
-// with XCDFFieldAlias.  There should be a cleaner way to code this.
-class XCDFFile;
-
-template <typename T>
-class FieldNode : public Node<T> {
-
-  public:
-
-    FieldNode(ConstXCDFField<T> field) : field_(field) { }
-
-    T operator[](unsigned index) const {return field_[index];}
-    unsigned GetSize() const {return field_.GetSize();}
-
-    bool HasParent() const {return field_.HasParent();}
-    const std::string& GetParentName() const {return field_.GetParentName();}
-    const std::string& GetName() const {return field_.GetName();}
-
-  private:
-
-    ConstXCDFField<T> field_;
-};
-
 template <typename T>
 class ConstNode : public Node<T> {
 
@@ -69,22 +46,6 @@ class ConstNode : public Node<T> {
   private:
 
     T datum_;
-};
-
-class CounterNode : public Node<uint64_t> {
-
-  public:
-
-    CounterNode(const XCDFFile& f) : f_(f) { }
-
-    uint64_t operator[](unsigned index) const {
-      return f_.GetCurrentEventNumber();
-    }
-    unsigned GetSize() const {return 1;}
-
-  private:
-
-    const XCDFFile& f_;
 };
 
 namespace {
@@ -789,6 +750,43 @@ class TanhNode : public UnaryNode<T, double, TanhNode<T> > {
 
     TanhNode(Node<T>& node) : UnaryNode<T, double, TanhNode<T> >(node) { }
     double Evaluate(T a) const {return tanh(a);}
+};
+
+template <typename T>
+class IntNode : public UnaryNode<T, int64_t, IntNode<T> > {
+
+  public:
+
+    IntNode(Node<T>& node) : UnaryNode<T, int64_t, IntNode<T> >(node) { }
+    int64_t Evaluate(T a) const {return int(a);}
+};
+
+template <typename T>
+class UnsignedNode : public UnaryNode<T, uint64_t, UnsignedNode<T> > {
+
+  public:
+
+    UnsignedNode(Node<T>& node) :
+            UnaryNode<T, uint64_t, UnsignedNode<T> >(node) { }
+    uint64_t Evaluate(T a) const {return unsigned(a);}
+};
+
+template <typename T>
+class FloatNode : public UnaryNode<T, float, FloatNode<T> > {
+
+  public:
+
+    FloatNode(Node<T>& node) : UnaryNode<T, float, FloatNode<T> >(node) { }
+    float Evaluate(T a) const {return float(a);}
+};
+
+template <typename T>
+class DoubleNode : public UnaryNode<T, double, DoubleNode<T> > {
+
+  public:
+
+    DoubleNode(Node<T>& node) : UnaryNode<T, double, DoubleNode<T> >(node) { }
+    double Evaluate(T a) const {return double(a);}
 };
 
 class RandNode : public Node<uint64_t> {

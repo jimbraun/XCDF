@@ -153,6 +153,7 @@ template <typename T>
 void CheckConvertible(const XCDFFieldDataBase& base);
 
 template<>
+inline
 void CheckConvertible<uint64_t>(const XCDFFieldDataBase& base) {
   if (base.GetType() != XCDF_UNSIGNED_INTEGER) {
     XCDFFatal("Field " << base.GetName() << " is not unsigned integer type");
@@ -160,6 +161,7 @@ void CheckConvertible<uint64_t>(const XCDFFieldDataBase& base) {
 }
 
 template<>
+inline
 void CheckConvertible<int64_t>(const XCDFFieldDataBase& base) {
   if (base.GetType() != XCDF_SIGNED_INTEGER) {
     XCDFFatal("Field " << base.GetName() << " is not signed integer type");
@@ -167,6 +169,7 @@ void CheckConvertible<int64_t>(const XCDFFieldDataBase& base) {
 }
 
 template<>
+inline
 void CheckConvertible<double>(const XCDFFieldDataBase& base) {
   if (base.GetType() != XCDF_FLOATING_POINT) {
     XCDFFatal("Field " << base.GetName() << " is not floating point type");

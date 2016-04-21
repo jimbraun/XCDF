@@ -28,6 +28,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define XCDF_FILE_HEADER_INCLUDED_H
 
 #include <xcdf/XCDFFieldDescriptor.h>
+#include <xcdf/alias/XCDFAliasDescriptor.h>
 #include <xcdf/XCDFDefs.h>
 
 #include <vector>
@@ -36,6 +37,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <algorithm>
 
 /// Place descriptors in type order
+inline
 bool operator<(const XCDFFieldDescriptor& d1, const XCDFFieldDescriptor& d2) {
   return d1.type_ < d2.type_;
 }
@@ -65,13 +67,32 @@ class XCDFFileHeader {
                                      fieldDescriptors_.end(), d), d);
     }
 
+
+    bool HasAliasDescriptor(const XCDFAliasDescriptor& d) {
+      return std::find(aliasDescriptors_.begin(),
+                       aliasDescriptors_.end(), d) != aliasDescriptors_.end();
+    }
+
+    void AddAliasDescriptor(const XCDFAliasDescriptor& d) {
+      if (!HasAliasDescriptor(d)) {
+        aliasDescriptors_.push_back(d);
+      }
+    }
+
     std::vector<XCDFFieldDescriptor>::const_iterator
     FieldDescriptorsBegin() const {return fieldDescriptors_.begin();}
 
     std::vector<XCDFFieldDescriptor>::const_iterator
     FieldDescriptorsEnd() const {return fieldDescriptors_.end();}
 
+    std::vector<XCDFAliasDescriptor>::const_iterator
+    AliasDescriptorsBegin() const {return aliasDescriptors_.begin();}
+
+    std::vector<XCDFAliasDescriptor>::const_iterator
+    AliasDescriptorsEnd() const {return aliasDescriptors_.end();}
+
     uint32_t GetNFieldDescriptors() const {return fieldDescriptors_.size();}
+    uint32_t GetNAliasDescriptors() const {return aliasDescriptors_.size();}
 
     void UnpackFrame(XCDFFrame& frame) {
 
@@ -80,6 +101,9 @@ class XCDFFileHeader {
       assert(frame.GetType() == XCDF_FILE_HEADER);
 
       version_ = frame.GetUnsigned32();
+      if (version_ > XCDF_VERSION) {
+        XCDFFatal("Unable to read file of version " << version_);
+      }
       fileTrailerPtr_ = frame.GetUnsigned64();
 
       uint32_t nFields = frame.GetUnsigned32();
@@ -91,6 +115,17 @@ class XCDFFileHeader {
         descriptor.rawResolution_ = frame.GetUnsigned64();
         descriptor.parentName_ = frame.GetString();
         fieldDescriptors_.push_back(descriptor);
+      }
+
+      if (version_ > 2) {
+        uint32_t nAliases = frame.GetUnsigned32();
+        XCDFAliasDescriptor descriptor;
+        for (unsigned i = 0; i < nAliases; ++i) {
+          descriptor.SetName(frame.GetString());
+          descriptor.SetExpression(frame.GetString());
+          descriptor.SetType(XCDFFieldType(frame.GetChar()));
+          aliasDescriptors_.push_back(descriptor);
+        }
       }
     }
 
@@ -110,10 +145,20 @@ class XCDFFileHeader {
         frame.PutUnsigned64(it->rawResolution_);
         frame.PutString(it->parentName_);
       }
+
+      frame.PutUnsigned32(aliasDescriptors_.size());
+      for (std::vector<XCDFAliasDescriptor>::const_iterator
+                         it = aliasDescriptors_.begin();
+                         it != aliasDescriptors_.end(); ++it) {
+        frame.PutString(it->GetName());
+        frame.PutString(it->GetExpression());
+        frame.PutChar(it->GetType());
+      }
     }
 
     bool operator==(const XCDFFileHeader& fh) const {
 
+      // Aliases do not affect the equivalence of headers
       return version_ == fh.version_ &&
              fieldDescriptors_ == fh.fieldDescriptors_;
     }
@@ -125,6 +170,7 @@ class XCDFFileHeader {
     uint64_t fileTrailerPtr_;
     uint32_t version_;
     std::vector<XCDFFieldDescriptor> fieldDescriptors_;
+    std::vector<XCDFAliasDescriptor> aliasDescriptors_;
 };
 
 #endif // XCDF_FILE_HEADER_INCLUDED_H

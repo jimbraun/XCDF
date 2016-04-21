@@ -28,6 +28,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define XCDF_UTILITY_SYMBOL_H_INCLUDED
 
 #include <vector>
+#include <ostream>
 
 enum SymbolType {
 
@@ -84,6 +85,9 @@ enum SymbolType {
     FMOD,
     POW,
     ATAN2,
+    INT,
+    UNSIGNED,
+    DOUBLE
 };
 
 class Symbol {
@@ -110,28 +114,31 @@ class Symbol {
     }
 
     bool IsUnaryFunction() const {
-      return (type_ == UNIQUE ||
-              type_ == ANY    ||
-              type_ == ALL    ||
-              type_ == SUM    ||
-              type_ == SIN    ||
-              type_ == COS    ||
-              type_ == TAN    ||
-              type_ == ASIN   ||
-              type_ == ACOS   ||
-              type_ == ATAN   ||
-              type_ == LOG    ||
-              type_ == LOG10  ||
-              type_ == EXP    ||
-              type_ == ABS    ||
-              type_ == SQRT   ||
-              type_ == CEIL   ||
-              type_ == FLOOR  ||
-              type_ == ISNAN  ||
-              type_ == ISINF  ||
-              type_ == SINH   ||
-              type_ == COSH   ||
-              type_ == TANH);
+      return (type_ == UNIQUE   ||
+              type_ == ANY      ||
+              type_ == ALL      ||
+              type_ == SUM      ||
+              type_ == SIN      ||
+              type_ == COS      ||
+              type_ == TAN      ||
+              type_ == ASIN     ||
+              type_ == ACOS     ||
+              type_ == ATAN     ||
+              type_ == LOG      ||
+              type_ == LOG10    ||
+              type_ == EXP      ||
+              type_ == ABS      ||
+              type_ == SQRT     ||
+              type_ == CEIL     ||
+              type_ == FLOOR    ||
+              type_ == ISNAN    ||
+              type_ == ISINF    ||
+              type_ == SINH     ||
+              type_ == COSH     ||
+              type_ == TANH     ||
+              type_ == INT      ||
+              type_ == UNSIGNED ||
+              type_ == DOUBLE);
     }
 
     bool IsVoidFunction() const {
@@ -250,6 +257,9 @@ inline std::ostream& operator<<(std::ostream& os, const Symbol& s) {
     case FMOD:                os << "fmod"; break;
     case POW:                 os << "pow"; break;
     case ATAN2:               os << "atan2"; break;
+    case INT:                 os << "int"; break;
+    case UNSIGNED:            os << "unsigned"; break;
+    case DOUBLE:              os << "double"; break;
   }
   return os;
 }
