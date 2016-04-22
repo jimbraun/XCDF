@@ -61,8 +61,7 @@ class XCDFFrame {
   public:
 
     XCDFFrame() : type_(NONE),
-                  machineIsBigEndian_(TestBigEndian()),
-                  isDeflated_(false) { }
+                  machineIsBigEndian_(TestBigEndian()) { }
 
     ~XCDFFrame() { }
 
@@ -70,7 +69,6 @@ class XCDFFrame {
 
     XCDFFrameType GetType() const {return type_;}
     void SetType(const XCDFFrameType type) {type_ = type;}
-    bool IsDeflated() const {return isDeflated_;}
 
     void Write(std::ostream& o, bool deflate) {
 
@@ -232,7 +230,6 @@ class XCDFFrame {
     XCDFFrameType type_;
     XCDFFrameBuffer buffer_;
     bool machineIsBigEndian_;
-    bool isDeflated_;
 
     void ConvertEndian(uint32_t& datum) const {
       datum = (datum>>24) |
