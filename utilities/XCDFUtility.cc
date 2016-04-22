@@ -1238,7 +1238,6 @@ int do_main(int argc, char** argv) {
   std::ostream* outstream = &std::cout;
   std::ofstream fout;
   std::vector<std::string> infiles;
-  std::vector<std::string> outfiles;
   std::string copyFile = "";
   std::string delimeter = ",";
   int currentArg = 2;
