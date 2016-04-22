@@ -56,6 +56,7 @@ void XCDFFile::Init() {
   currentFrameEndOffset_ = 0;
 
   currentFileName_ = "";
+  isSimple_ = false;
 }
 
 /*
@@ -589,6 +590,7 @@ bool XCDFFile::ReadNextBlock() {
       XCDFFileTrailer tempTrailer;
       tempTrailer.UnpackFrame(currentFrame_, fileHeader_.GetVersion());
       CopyTrailer(tempTrailer);
+      LoadNewAliases(tempTrailer);
     }
 
     // Check if file is concatenated
@@ -741,6 +743,7 @@ void XCDFFile::ReadFileHeaders() {
       SetGlobals(fileTrailer_);
       LoadNewAliases(fileTrailer_);
       blockTableComplete_ = true;
+      isSimple_ = true;
     } else {
       blockTableComplete_ = false;
     }
@@ -757,6 +760,7 @@ void XCDFFile::ReadFileHeaders() {
       ReadFrame();
 
       // File is concatenated
+      isSimple_ = false;
       currentFileStartOffset_ =  currentFrameStartOffset_;
       XCDFFileHeader  tempHeader;
       XCDFFileTrailer tempTrailer;
@@ -772,6 +776,7 @@ void XCDFFile::ReadFileHeaders() {
         XCDFFatal("Found mismatching header at file position "
                            << currentFrameStartOffset_ << ". Aborting");
       }
+      LoadNewAliases(tempHeader);
 
       // Read in the new file trailer
       if (tempHeader.HasFileTrailerPtr()) {

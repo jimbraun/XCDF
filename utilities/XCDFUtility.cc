@@ -337,7 +337,8 @@ void CopyComments(XCDFFile& destination,
 }
 
 void CopyAliases(XCDFFile& destination,
-                 XCDFFile& source) {
+                 XCDFFile& source,
+                 std::string exclude = "") {
 
   for (std::vector<XCDFAliasDescriptor>::const_iterator
                              it = source.AliasDescriptorsBegin();
@@ -345,7 +346,7 @@ void CopyAliases(XCDFFile& destination,
 
     try {
       // We might add duplicate aliases, so catch that here
-      if (!destination.HasAlias(it->GetName())) {
+      if (!destination.HasAlias(it->GetName()) && it->GetName() != exclude) {
         destination.CreateAlias(it->GetName(), it->GetExpression());
       }
     } catch (XCDFException& e) { }
@@ -600,6 +601,128 @@ void RemoveComments(std::vector<std::string>& infiles,
     outFile.Write();
   }
   CopyAliases(outFile, f);
+  outFile.Close();
+}
+
+bool IsStdout(std::ostream& out) {
+  return &out == &std::cout;
+}
+
+void RemoveAlias(std::vector<std::string>& infiles,
+              std::ostream& out,
+              const std::string& name) {
+
+  // If no output file is supplied, and input files are supplied,
+  // attempt an in-place update
+  if (IsStdout(out) && infiles.size() > 0) {
+    for (unsigned i = 0; i < infiles.size(); ++i) {
+      ModifyTrailer(infiles[i], AliasRemover(name), 3);
+    }
+    return;
+  }
+
+  // Rewrite the data to the specified output, with the alias removed
+  XCDFFile outFile(out);
+  FieldCopyBuffer buf(outFile);
+
+  // Spin through the files and copy the data
+  XCDFFile f;
+  for (unsigned i = 0; i <= infiles.size(); ++i) {
+
+    if (i == infiles.size()) {
+      if (infiles.size() == 0) {
+        //read from stdin
+        f.Open(std::cin);
+      } else {
+        continue;
+      }
+    } else {
+      f.Open(infiles[i], "r");
+    }
+
+    // Get the names of all the fields
+    std::set<std::string> fields;
+    GetFieldNamesVisitor getFieldNamesVisitor(fields);
+    f.ApplyFieldVisitor(getFieldNamesVisitor);
+
+    // Load the fields into the buffer for copying
+    SelectFieldVisitor selectFieldVisitor(f, fields, buf);
+    f.ApplyFieldVisitor(selectFieldVisitor);
+
+    // Need to copy at beginning to ensure all known aliases are
+    // placed into the header of the new file if at all possible
+    CopyAliases(outFile, f, name);
+    while (f.Read()) {
+      buf.CopyData();
+      outFile.Write();
+    }
+
+    CopyComments(outFile, f);
+    // Copy any aliases unavailable at beginning
+    CopyAliases(outFile, f, name);
+    f.Close();
+  }
+
+  outFile.Close();
+}
+
+void AddAlias(std::vector<std::string>& infiles,
+              std::ostream& out,
+              const std::string& name,
+              const std::string& expression) {
+
+  // If no output file is supplied, and input files are supplied,
+  // attempt an in-place update
+  if (IsStdout(out) && infiles.size() > 0) {
+    for (unsigned i = 0; i < infiles.size(); ++i) {
+      ModifyTrailer(infiles[i], AliasAdder(name, expression), 3);
+    }
+    return;
+  }
+
+  // Rewrite the data to the specified output, with the new alias
+  XCDFFile outFile(out);
+  outFile.CreateAlias(name, expression);
+  FieldCopyBuffer buf(outFile);
+
+  // Spin through the files and copy the data
+  XCDFFile f;
+  for (unsigned i = 0; i <= infiles.size(); ++i) {
+
+    if (i == infiles.size()) {
+      if (infiles.size() == 0) {
+        //read from stdin
+        f.Open(std::cin);
+      } else {
+        continue;
+      }
+    } else {
+      f.Open(infiles[i], "r");
+    }
+
+    // Get the names of all the fields
+    std::set<std::string> fields;
+    GetFieldNamesVisitor getFieldNamesVisitor(fields);
+    f.ApplyFieldVisitor(getFieldNamesVisitor);
+
+    // Load the fields into the buffer for copying
+    SelectFieldVisitor selectFieldVisitor(f, fields, buf);
+    f.ApplyFieldVisitor(selectFieldVisitor);
+
+    // Need to copy at beginning to ensure all known aliases are
+    // placed into the header of the new file if at all possible
+    CopyAliases(outFile, f);
+    while (f.Read()) {
+      buf.CopyData();
+      outFile.Write();
+    }
+
+    CopyComments(outFile, f);
+    // Copy any aliases unavailable at beginning
+    CopyAliases(outFile, f);
+    f.Close();
+  }
+
   outFile.Close();
 }
 
@@ -1040,18 +1163,26 @@ void PrintUsage() {
 
     "    recover {-o outfile} {infiles} Recover a corrupt XCDF file.\n\n" <<
 
-    "    add-alias name \"expression\" {-o outfile} infile:\n\n" <<
+    "    add-alias name \"expression\" {-o outfile} {infiles}:\n\n" <<
 
     "                    Add an alias to \"infile\" consisting of a numerical" <<
     "                    expression.  The expression may contain fields, e.g." <<
     "                    \'xcdf add-alias myAlias \"abs(field1)\" myFile.xcd" <<
     "                    creates the alias \'myAlias\' that contains the absolute" <<
     "                    value of XCDF field \'field1\'. \'myAlias\' may then be" <<
-    "                    selections and other expressions.  The alias is added" <<
-    "                    in-place to the existing file when possible if an output" <<
-    "                    file is not specified.  Note that aliases added in-place" <<
-    "                    are not available when reading an XCDF file using a" <<
-    "                    stream or pipe\n\n" <<
+    "                    selections and other expressions.  If an output file is not" <<
+    "                    specified, the alias is added in-place to the existing" <<
+    "                    file if possible.  If an output file is specified," <<
+    "                    adding an alias with the same name as an existing alias" <<
+    "                    replaces that alias with the new expression.  Note that" <<
+    "                    aliases added in-place are not available when reading an" <<
+    "                    XCDF file using a stream or pipe.\n\n" <<
+
+    "    remove-alias name {-o outfile} {infiles}:\n\n" <<
+
+    "                    Remove an alias from \"infile\".  If an output file is" <<
+    "                    not specified, the removal is done in-place if possible." <<
+    "                    Only aliases added in-place may be removed in-place." <<
 
     "    histogram \"histogram expression\" {infiles}:\n\n" <<
     "                    Create a histogram from the selected files according to\n" <<
@@ -1103,9 +1234,11 @@ int do_main(int argc, char** argv) {
   const std::string verb(argv[1]);
 
   std::string exp = "";
+  std::string exp2 = "";
   std::ostream* outstream = &std::cout;
   std::ofstream fout;
   std::vector<std::string> infiles;
+  std::vector<std::string> outfiles;
   std::string copyFile = "";
   std::string delimeter = ",";
   int currentArg = 2;
@@ -1159,13 +1292,39 @@ int do_main(int argc, char** argv) {
 
   if (!verb.compare("select") ||
       !verb.compare("select-fields") ||
-      !verb.compare("add-comment")) {
+      !verb.compare("add-comment") ||
+      !verb.compare("remove-alias")) {
 
     if (argc < 3) {
       PrintUsage();
       exit(1);
     }
     exp = std::string(argv[currentArg++]);
+
+    if (currentArg < argc) {
+
+      std::string out(argv[currentArg]);
+      if (!out.compare("-o")) {
+
+        if (++currentArg == argc) {
+          PrintUsage();
+          exit(1);
+        }
+
+        fout.open(argv[currentArg++]);
+        outstream = &fout;
+      }
+    }
+  }
+
+  if (!verb.compare("add-alias")) {
+
+    if (argc < 4) {
+      PrintUsage();
+      exit(1);
+    }
+    exp = std::string(argv[currentArg++]);
+    exp2 = std::string(argv[currentArg++]);
 
     if (currentArg < argc) {
 
@@ -1244,6 +1403,14 @@ int do_main(int argc, char** argv) {
 
   else if (!verb.compare("recover")) {
     Recover(infiles, *outstream);
+  }
+
+  else if (!verb.compare("add-alias")) {
+    AddAlias(infiles, *outstream, exp, exp2);
+  }
+
+  else if (!verb.compare("remove-alias")) {
+    RemoveAlias(infiles, *outstream, exp);
   }
 
   else if (!verb.compare("count")) {

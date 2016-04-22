@@ -33,9 +33,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <iostream>
 #include <iomanip>
+#include <fstream>
 #include <utility>
 #include <algorithm>
 #include <set>
+
+#include <unistd.h>
 
 /*!
  * @file XCDFUtility
@@ -728,6 +731,116 @@ class CSVInputHandler {
     std::vector<std::string> currentParsedLine_;
     std::string currentLine_;
 };
+
+class AliasAdder {
+
+  public:
+
+    AliasAdder(const std::string& name,
+               const std::string& expression) : name_(name),
+                                                expression_(expression) { }
+
+    void Init(XCDFFile& f) {
+      // This will fail if the alias already exists.  Since this
+      // file is not written, we're not actually modifying the file yet.
+      f.CreateAlias(name_, expression_);
+      descriptor_ = f.GetAliasDescriptor(name_);
+    }
+
+    void Modify(XCDFFileTrailer& trailer) {
+      trailer.AddAliasDescriptor(descriptor_);
+    }
+
+  private:
+
+    std::string name_;
+    std::string expression_;
+    XCDFAliasDescriptor descriptor_;
+};
+
+class AliasRemover {
+
+  public:
+
+    AliasRemover(const std::string& name) : name_(name) { }
+
+    void Init(XCDFFile& f) { }
+
+    void Modify(XCDFFileTrailer& trailer) {
+      try {
+        trailer.RemoveAliasDescriptorByName(name_);
+      } catch (XCDFException& e) {
+        XCDFFatal("Alias " << name_ << " cannot be removed");
+      }
+    }
+
+  private:
+
+    std::string name_;
+};
+
+template <typename Modifier>
+void ModifyTrailer(const std::string& infile,
+                   Modifier modifier,
+                   unsigned minVersion) {
+
+  XCDFFile f;
+  f.Open(infile, "r");
+
+  // Don't modify trailer if version is not sufficient
+  if (f.GetVersion() < minVersion) {
+    XCDFFatal("Unable to modify file in-place: XCDF version < " << minVersion)
+  }
+
+  // Don't modify files that are concatenated or are written via streams
+  if (!f.IsSimple()) {
+    XCDFFatal("Unable to modify file in-place: " << infile <<
+              " File is concatenated or written via stream/pipe")
+  }
+
+  // Initialize the modifier
+  modifier.Init(f);
+  f.Close();
+
+  // Get the existing trailer
+  XCDFFrame frame;
+  XCDFFileHeader header;
+  XCDFFileTrailer trailer;
+  uint64_t filePos;
+  try {
+    std::ifstream in(infile);
+    frame.Read(in);
+    header.UnpackFrame(frame);
+    filePos = header.GetFileTrailerPtr();
+    in.seekg(filePos);
+    frame.Read(in);
+    trailer.UnpackFrame(frame, header.GetVersion());
+    in.close();
+  } catch (XCDFException& e) {
+    XCDFFatal("Unable to open file " << infile);
+  } catch (std::istream::failure& e) {
+    XCDFFatal("Unable to seek to end of file " << infile);
+  }
+
+  // Modify the trailer
+  modifier.Modify(trailer);
+
+  // Overwrite the old trailer with the modified one
+  try {
+    std::fstream out(infile);
+    out.seekp(filePos);
+    frame.Clear();
+    trailer.PackFrame(frame);
+    frame.Write(out, true);
+    filePos = out.tellp();
+    out.close();
+  } catch (std::fstream::failure& e) {
+    XCDFFatal("Cannot write trailer to file " << infile);
+  }
+
+  // Now we need to truncate
+  truncate(infile.c_str(), filePos);
+}
 
 
 #endif // XCDF_UTILITY_UTILITY_INCLUDED_H

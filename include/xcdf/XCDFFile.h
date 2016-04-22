@@ -213,6 +213,12 @@ class XCDFFile {
       }
     }
 
+    /// Does the underlying file have a trailer pointer that we can seek to?
+    bool IsSimple() {return isSimple_;}
+
+    /// Get the version number of the current open file
+    uint32_t GetVersion() const {return fileHeader_.GetVersion();}
+
     /// Get the total number of fields allocated in the file
     uint32_t GetNFields() const {return fieldList_.size();}
 
@@ -594,6 +600,11 @@ class XCDFFile {
     std::vector<XCDFAliasDescriptor>::const_iterator
     AliasDescriptorsEnd() const {return fileHeader_.AliasDescriptorsEnd();}
 
+    XCDFAliasDescriptor
+    GetAliasDescriptor(const std::string& name) {
+      return GetXCDFAliasDescriptor(**FindAliasByName(name, true));
+    }
+
   private:
 
     // Keep a vector of XCDFFieldData objects.  List order is read/write
@@ -623,6 +634,7 @@ class XCDFFile {
     bool isAppend_;
     bool recover_;
     std::string currentFileName_;
+    bool isSimple_;
 
     // State of field global data
     bool unusableGlobalsFromFile_;

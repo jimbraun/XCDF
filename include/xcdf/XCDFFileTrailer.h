@@ -34,6 +34,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <vector>
 #include <cassert>
+#include <algorithm>
 
 #include <stdint.h>
 
@@ -139,6 +140,27 @@ class XCDFFileTrailer {
     AliasDescriptorsEnd() const {return aliasDescriptors_.end();}
 
     uint32_t GetNAliasDescriptors() const {return aliasDescriptors_.size();}
+
+    class DescriptorNameMatch {
+      public:
+        DescriptorNameMatch(const std::string& name) : name_(name) { }
+        bool operator()(const XCDFAliasDescriptor& d) {
+          return name_ == d.GetName();
+        }
+      private:
+        std::string name_;
+    };
+
+    void RemoveAliasDescriptorByName(const std::string& name) {
+      std::vector<XCDFAliasDescriptor>::iterator
+             element = std::find_if(aliasDescriptors_.begin(),
+                                    aliasDescriptors_.end(),
+                                    DescriptorNameMatch(name));
+      if (element == aliasDescriptors_.end()) {
+        XCDFFatal("Unable to remove alias " << name << ".  No such alias");
+      }
+      aliasDescriptors_.erase(element);
+    }
 
     void ClearGlobals() {globals_.clear();}
     void ClearAliasDescriptors() {aliasDescriptors_.clear();}
