@@ -808,7 +808,7 @@ void ModifyTrailer(const std::string& infile,
   XCDFFileTrailer trailer;
   uint64_t filePos;
   try {
-    std::ifstream in(infile);
+    std::ifstream in(infile.c_str());
     frame.Read(in);
     header.UnpackFrame(frame);
     filePos = header.GetFileTrailerPtr();
@@ -827,7 +827,7 @@ void ModifyTrailer(const std::string& infile,
 
   // Overwrite the old trailer with the modified one
   try {
-    std::fstream out(infile);
+    std::fstream out(infile.c_str());
     out.seekp(filePos);
     frame.Clear();
     trailer.PackFrame(frame);
