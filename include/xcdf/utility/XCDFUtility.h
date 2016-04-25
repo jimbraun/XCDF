@@ -838,7 +838,7 @@ void ModifyTrailer(const std::string& infile,
     XCDFFatal("Cannot write trailer to file " << infile);
   }
 
-  // Now we need to truncate
+  // Now we need to truncate.  The following is POSIX-compliant only.
   truncate(infile.c_str(), filePos);
 }
 
