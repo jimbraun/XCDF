@@ -133,6 +133,7 @@ class BinaryNode : public Node<ReturnType> {
       // Note that, as in standard C style, the burden on checking
       // that the index is in range falls on the caller.
       switch (type_) {
+        default:
         case SCALAR:
         case SCALAR_FIRST: return DoEvaluation(n1_[0], n2_[index]);
         case VECTOR_VECTOR: return DoEvaluation(n1_[index], n2_[index]);
