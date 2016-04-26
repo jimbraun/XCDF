@@ -43,11 +43,16 @@ class Node : public Symbol {
     // proper evaluation relationships.  Treat any node as
     // if it is derived from an XCDFField.  This is a bit
     // of a kludge IMO.
+    virtual const std::string& GetName() const {return NO_PARENT;}
 
     // Set no parent by default
     virtual bool HasParent() const {return false;}
     virtual const std::string& GetParentName() const {return NO_PARENT;}
-    virtual const std::string& GetName() const {return NO_PARENT;}
+
+    // Support checking second-level node relationships
+    virtual bool HasGrandparent() const {return false;}
+    virtual const std::string& GetGrandparentName() const {return NO_PARENT;}
+    virtual unsigned GetParentIndex(unsigned index) const {return 0;}
 };
 
 template <> inline
@@ -63,10 +68,19 @@ Node<double>::Node() : Symbol(FLOATING_POINT_NODE) { }
  *  Operations to check the parent relationship between two node objects
  */
 enum NodeRelationType {
+  // Scalar-only relationship
   SCALAR,
+
+  // Scalar-Vector relationships
   SCALAR_FIRST,
   SCALAR_SECOND,
+
+  // Vector-Vector relationships
   VECTOR_VECTOR,
+
+  // nD vector to (n-1)D vector relationships
+  PARENT_FIRST,
+  PARENT_SECOND
 };
 
 /*
@@ -76,9 +90,8 @@ enum NodeRelationType {
  *     resulting size is the size of the vector node.
  *  2. Node derived from a vector field compared with a similar node from
  *     the same parent. The resulting size is the size of either field.
- *  *  We're missing obvious cases: comparing a 2D vector field with its
- *     parent or a sibling of its parent.  The latter is more likely, but
- *     actually very difficult to implement.
+ *  3. Node derived from a 2D+ vector field compared with a node that is
+ *     a sibling if its parent.
  */
 template <typename T, typename U>
 NodeRelationType GetRelationType(const Node<T>& n1, const Node<U>& n2) {
@@ -95,6 +108,19 @@ NodeRelationType GetRelationType(const Node<T>& n1, const Node<U>& n2) {
   // both fields have a parent
   if (n1.GetParentName() == n2.GetParentName()) {
     return VECTOR_VECTOR;
+  }
+  // complex or non-existing node relationship.  Check if one node
+  // is a sibling of the other node's parent
+  if (n2.HasGrandparent()) {
+    if (n2.GetGrandparentName() == n1.GetParentName()) {
+      return PARENT_FIRST;
+    }
+  }
+
+  if (n1.HasGrandparent()) {
+    if (n1.GetGrandparentName() == n2.GetParentName()) {
+      return PARENT_SECOND;
+    }
   }
 
   // Don't use XCDFFatal here, since we may want to catch this

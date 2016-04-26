@@ -28,6 +28,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define XCDF_UTILITY_NODE_DEFS_H_INCLUDED
 
 #include <xcdf/utility/Node.h>
+#include <xcdf/XCDFDefs.h>
 
 #include <cmath>
 #include <algorithm>
@@ -57,6 +58,13 @@ class GetSizePolicy {
     ReturnType operator()(const NodeType& node) {return node.GetSize();}
 };
 
+class GetNamePolicy {
+  public:
+    typedef const std::string& ReturnType;
+    template <typename NodeType>
+    ReturnType operator()(const NodeType& node) {return node.GetName();}
+};
+
 class HasParentPolicy {
   public:
     typedef bool ReturnType;
@@ -71,11 +79,38 @@ class GetParentNamePolicy {
     ReturnType operator()(const NodeType& node) {return node.GetParentName();}
 };
 
-class GetNamePolicy {
+class HasGrandparentPolicy {
+  public:
+    typedef bool ReturnType;
+    template <typename NodeType>
+    ReturnType operator()(const NodeType& node) {
+      return node.HasGrandparent();
+    }
+};
+
+class GetGrandparentNamePolicy {
   public:
     typedef const std::string& ReturnType;
     template <typename NodeType>
-    ReturnType operator()(const NodeType& node) {return node.GetName();}
+    ReturnType operator()(const NodeType& node) {
+      return node.GetGrandparentName();
+    }
+};
+
+class GetParentIndexPolicy {
+  public:
+
+    GetParentIndexPolicy(unsigned index) : index_(index) { }
+
+    typedef unsigned ReturnType;
+    template <typename NodeType>
+    ReturnType operator()(const NodeType& node) {
+      return node.GetParentIndex(index_);
+    }
+
+  private:
+
+    unsigned index_;
 };
 
 }
@@ -102,11 +137,20 @@ class BinaryNode : public Node<ReturnType> {
         case SCALAR_FIRST: return DoEvaluation(n1_[0], n2_[index]);
         case VECTOR_VECTOR: return DoEvaluation(n1_[index], n2_[index]);
         case SCALAR_SECOND: return DoEvaluation(n1_[index], n2_[0]);
+        case PARENT_FIRST: return DoEvaluation(
+                               n1_[n2_.GetParentIndex(index)], n2_[index]);
+        case PARENT_SECOND: return DoEvaluation(
+                               n1_[index], n2_[n1_.GetParentIndex(index)]);
       }
     }
 
     GetSizePolicy::ReturnType GetSize() const {
       return ApplyToLargerNode(GetSizePolicy());
+    }
+
+
+    GetNamePolicy::ReturnType GetName() const {
+      return ApplyToLargerNode(GetNamePolicy());
     }
 
     HasParentPolicy::ReturnType HasParent() const {
@@ -117,8 +161,16 @@ class BinaryNode : public Node<ReturnType> {
       return ApplyToLargerNode(GetParentNamePolicy());
     }
 
-    GetNamePolicy::ReturnType GetName() const {
-      return ApplyToLargerNode(GetNamePolicy());
+    HasGrandparentPolicy::ReturnType HasGrandparent() const {
+      return ApplyToLargerNode(HasGrandparentPolicy());
+    }
+
+    GetGrandparentNamePolicy::ReturnType GetGrandparentName() const {
+      return ApplyToLargerNode(GetGrandparentNamePolicy());
+    }
+
+    GetParentIndexPolicy::ReturnType GetParentIndex(unsigned index) const {
+      return ApplyToLargerNode(GetParentIndexPolicy(index));
     }
 
   private:
@@ -135,8 +187,10 @@ class BinaryNode : public Node<ReturnType> {
       switch (type_) {
         case SCALAR:
         case SCALAR_FIRST:
+        case PARENT_FIRST:
         case VECTOR_VECTOR: return policy(n2_);
-        case SCALAR_SECOND: return policy(n1_);
+        case SCALAR_SECOND:
+        case PARENT_SECOND: return policy(n1_);
       }
     }
 
@@ -156,9 +210,18 @@ class UnaryNode : public Node<ReturnType> {
     }
 
     unsigned GetSize() const {return node_.GetSize();}
+    const std::string& GetName() const {return node_.GetName();}
+
     bool HasParent() const {return node_.HasParent();}
     const std::string& GetParentName() const {return node_.GetParentName();}
-    const std::string& GetName() const {return node_.GetName();}
+
+    bool HasGrandparent() const {return node_.HasGrandparent();}
+    const std::string& GetGrandparentName() const {
+      return node_.GetGrandparentName();
+    }
+    unsigned GetParentIndex(unsigned index) const {
+      return node_.GetParentIndex(index);
+    }
 
   private:
 

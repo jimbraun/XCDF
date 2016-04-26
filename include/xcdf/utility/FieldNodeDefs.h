@@ -33,6 +33,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * with XCDFAlias.
  */
 
+#include <xcdf/utility/Node.h>
 #include <xcdf/XCDFFile.h>
 #include <xcdf/alias/XCDFFieldAlias.h>
 #include <xcdf/XCDFField.h>
@@ -44,12 +45,36 @@ class FieldNode : public Node<T> {
 
     FieldNode(ConstXCDFField<T> field) : field_(field) { }
 
+    // Knowing size limits is up to the user
     T operator[](unsigned index) const {return field_[index];}
     unsigned GetSize() const {return field_.GetSize();}
 
+    const std::string& GetName() const {return field_.GetName();}
+
     bool HasParent() const {return field_.HasParent();}
     const std::string& GetParentName() const {return field_.GetParentName();}
-    const std::string& GetName() const {return field_.GetName();}
+
+    bool HasGrandparent() const {return field_.GetParent().HasParent();}
+    const std::string& GetGrandparentName() const {
+      return field_.GetParent().GetParentName();
+    }
+
+    unsigned GetParentIndex(unsigned index) const {
+      ConstXCDFField<uint64_t> parent = field_.GetParent();
+      // Find the parent index corresponding to this index.
+      unsigned sum = 0;
+      for (unsigned i = 0; i < parent.GetSize(); ++i) {
+        sum += parent[i];
+        if (sum > index) {
+          return i;
+        }
+      }
+
+      // This should never happen if index < GetSize()
+      XCDFFatal("GetParentIndex(): Trying to access index " << index <<
+                     " of field " << GetName());
+      return 0;
+    }
 
   private:
 
@@ -66,11 +91,20 @@ class AliasNode : public Node<T> {
     T operator[](unsigned index) const {return alias_[index];}
     unsigned GetSize() const {return alias_.GetSize();}
 
+    const std::string& GetName() const {return alias_.GetName();}
+
     bool HasParent() const {return alias_.GetHeadNode().HasParent();}
     const std::string& GetParentName() const {
       return alias_.GetHeadNode().GetParentName();
     }
-    const std::string& GetName() const {return alias_.GetName();}
+
+    bool HasGrandparent() const {return alias_.GetHeadNode().HasGrandparent();}
+    const std::string& GetGrandparentName() const {
+      return alias_.GetHeadNode().GetGrandparentName();
+    }
+    unsigned GetParentIndex(unsigned index) const {
+      return alias_.GetHeadNode().GetParentIndex(index);
+    }
 
   private:
 

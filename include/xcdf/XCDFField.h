@@ -59,7 +59,9 @@ class ConstXCDFField {
 
     /// Get the parent field.
     ConstXCDFField<uint64_t> GetParent() const {
-      return ConstXCDFField<uint64_t>(FieldData()->GetParent());
+      return ConstXCDFField<uint64_t>(
+          static_cast<const XCDFFieldData<uint64_t>* >(
+                                     FieldData()->GetParent()));
     }
 
     const std::string& GetName() const {return FieldData()->GetName();}

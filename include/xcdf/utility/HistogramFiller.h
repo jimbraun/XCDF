@@ -80,6 +80,22 @@ class VectorFiller1D : public DynamicFiller1D {
     }
 };
 
+template <typename FillPolicy>
+class ParentFiller1D : public DynamicFiller1D {
+
+  public:
+
+    ParentFiller1D(const NumericalExpression<double>& ne1,
+                   const NumericalExpression<double>& ne2) :
+                                      DynamicFiller1D(ne1, ne2) { }
+    void Fill(Histogram1D& h) const {
+      for (unsigned i = 0; i < ne1_.GetSize(); ++i) {
+        FillPolicy::Fill(h, ne1_.Evaluate(i),
+                         ne2_.Evaluate(ne1_.GetHeadNode().GetParentIndex(i)));
+      }
+    }
+};
+
 class Vector12Filler1D : public DynamicFiller1D {
 
   public:
@@ -122,6 +138,13 @@ DynamicFiller1DPtr GetFiller(NodeRelationType type,
 
     case VECTOR_VECTOR:
       return DynamicFiller1DPtr(new Vector12Filler1D(ne1, ne2));
+
+    // Second expression is the larger vector.
+    case PARENT_FIRST:
+      return DynamicFiller1DPtr(new ParentFiller1D<FillYX>(ne2, ne1));
+
+    case PARENT_SECOND:
+      return DynamicFiller1DPtr(new ParentFiller1D<FillXY>(ne1, ne2));
   }
 }
 
@@ -219,6 +242,25 @@ class Vector12Filler2D : public DynamicFiller2D {
     }
 };
 
+template <typename FillPolicy>
+class Parent12Filler2D : public DynamicFiller2D {
+
+  public:
+
+    Parent12Filler2D(const NumericalExpression<double>& ne1,
+                     const NumericalExpression<double>& ne2,
+                     const NumericalExpression<double>& ne3) :
+                                 DynamicFiller2D(ne1, ne2, ne3) { }
+
+    void Fill(Histogram2D& h) const {
+      for (unsigned i = 0; i < ne1_.GetSize(); ++i) {
+        FillPolicy::Fill(h, ne1_.Evaluate(i),
+                         ne2_.Evaluate(ne1_.GetHeadNode().GetParentIndex(i)),
+                         ne3_.Evaluate());
+      }
+    }
+};
+
 class Vector123Filler2D : public DynamicFiller2D {
 
   public:
@@ -231,6 +273,63 @@ class Vector123Filler2D : public DynamicFiller2D {
     void Fill(Histogram2D& h) const {
       for (unsigned i = 0; i < ne1_.GetSize(); ++i) {
         h.Fill(ne1_.Evaluate(i), ne2_.Evaluate(i), ne3_.Evaluate(i));
+      }
+    }
+};
+
+template <typename FillPolicy>
+class Parent12v3Filler2D : public DynamicFiller2D {
+
+  public:
+
+    Parent12v3Filler2D(const NumericalExpression<double>& ne1,
+                       const NumericalExpression<double>& ne2,
+                       const NumericalExpression<double>& ne3) :
+                                 DynamicFiller2D(ne1, ne2, ne3) { }
+
+    void Fill(Histogram2D& h) const {
+      for (unsigned i = 0; i < ne1_.GetSize(); ++i) {
+        FillPolicy::Fill(h, ne1_.Evaluate(i),
+                         ne2_.Evaluate(i),
+                         ne3_.Evaluate(ne1_.GetHeadNode().GetParentIndex(i)));
+      }
+    }
+};
+
+template <typename FillPolicy>
+class Parent1v23Filler2D : public DynamicFiller2D {
+
+  public:
+
+    Parent1v23Filler2D(const NumericalExpression<double>& ne1,
+                       const NumericalExpression<double>& ne2,
+                       const NumericalExpression<double>& ne3) :
+                                 DynamicFiller2D(ne1, ne2, ne3) { }
+
+    void Fill(Histogram2D& h) const {
+      for (unsigned i = 0; i < ne1_.GetSize(); ++i) {
+        FillPolicy::Fill(h, ne1_.Evaluate(i),
+                         ne2_.Evaluate(ne1_.GetHeadNode().GetParentIndex(i)),
+                         ne3_.Evaluate(ne1_.GetHeadNode().GetParentIndex(i)));
+      }
+    }
+};
+
+template <typename FillPolicy>
+class Parent1v2v3Filler2D : public DynamicFiller2D {
+
+  public:
+
+    Parent1v2v3Filler2D(const NumericalExpression<double>& ne1,
+                        const NumericalExpression<double>& ne2,
+                        const NumericalExpression<double>& ne3) :
+                                 DynamicFiller2D(ne1, ne2, ne3) { }
+
+    void Fill(Histogram2D& h) const {
+      for (unsigned i = 0; i < ne1_.GetSize(); ++i) {
+        unsigned interIdx = ne1_.GetHeadNode().GetParentIndex(i);
+        FillPolicy::Fill(h, ne1_.Evaluate(i), ne2_.Evaluate(interIdx),
+                ne3_.Evaluate(ne2_.GetHeadNode().GetParentIndex(interIdx)));
       }
     }
 };
@@ -296,7 +395,17 @@ DynamicFiller2DPtr GetFiller(NodeRelationType type12,
         return DynamicFiller2DPtr(new VectorFiller2D<FillYXZ>(ne2, ne1, ne3));
         // type13 == SCALAR_FIRST.  Field3 is a vector.
       } else {
-        return DynamicFiller2DPtr(new Vector12Filler2D<FillYZX>(ne2, ne3, ne1));
+        if (type23 == VECTOR_VECTOR) {
+          return DynamicFiller2DPtr(
+                          new Vector12Filler2D<FillYZX>(ne2, ne3, ne1));
+        } else if (type23 == PARENT_FIRST) {
+          return DynamicFiller2DPtr(
+                          new Parent12Filler2D<FillZYX>(ne3, ne2, ne1));
+        } else {
+          // type23 == PARENT_SECOND
+          return DynamicFiller2DPtr(
+                          new Parent12Filler2D<FillYZX>(ne2, ne3, ne1));
+        }
       }
     }
 
@@ -305,15 +414,81 @@ DynamicFiller2DPtr GetFiller(NodeRelationType type12,
         return DynamicFiller2DPtr(new VectorFiller2D<FillXYZ>(ne1, ne2, ne3));
         // type23 == SCALAR_FIRST.  Field3 is a vector.
       } else {
-        return DynamicFiller2DPtr(new Vector12Filler2D<FillXZY>(ne1, ne3, ne2));
+        if (type13 == VECTOR_VECTOR) {
+          return DynamicFiller2DPtr(
+                          new Vector12Filler2D<FillXZY>(ne1, ne3, ne2));
+        } else if (type13 == PARENT_FIRST) {
+          return DynamicFiller2DPtr(
+                          new Parent12Filler2D<FillZXY>(ne3, ne1, ne2));
+        } else {
+          // type13 == PARENT_SECOND
+          return DynamicFiller2DPtr(
+                          new Parent12Filler2D<FillXZY>(ne1, ne3, ne2));
+        }
       }
     }
 
     case VECTOR_VECTOR: {
       if (type23 == SCALAR_SECOND) {
-        return DynamicFiller2DPtr(new Vector12Filler2D<FillXYZ>(ne1, ne2, ne3));
+        return DynamicFiller2DPtr(
+                     new Vector12Filler2D<FillXYZ>(ne1, ne2, ne3));
       } else {
-        return DynamicFiller2DPtr(new Vector123Filler2D(ne1, ne2, ne3));
+        if (type23 == VECTOR_VECTOR) {
+          return DynamicFiller2DPtr(new Vector123Filler2D(ne1, ne2, ne3));
+        } else if (type23 == PARENT_FIRST) {
+          return DynamicFiller2DPtr(
+                          new Parent1v23Filler2D<FillZXY>(ne3, ne1, ne2));
+        } else {
+          // type23 == PARENT_SECOND
+          return DynamicFiller2DPtr(
+                          new Parent12v3Filler2D<FillXYZ>(ne1, ne2, ne3));
+        }
+      }
+    }
+
+    case PARENT_FIRST: {
+      if (type13 == SCALAR_SECOND) {
+        return DynamicFiller2DPtr(
+                      new Parent12Filler2D<FillYXZ>(ne2, ne1, ne3));
+      } else {
+        if (type23 == VECTOR_VECTOR) {
+          return DynamicFiller2DPtr(
+                           new Parent12v3Filler2D<FillYZX>(ne2, ne3, ne1));
+        } else if (type23 == PARENT_FIRST) {
+          // Not supported: Calculation of type13 will fail
+          return DynamicFiller2DPtr(
+                           new Parent1v2v3Filler2D<FillZYX>(ne3, ne2, ne1));
+        } else {
+          // type23 == PARENT_SECOND
+          // Assume type13 is VECTOR_VECTOR.
+          // type13 == PARENT_FIRST --> type23 == VECTOR_VECTOR
+          // type13 == PARENT_SECOND --> calculation of type23 will fail
+          return DynamicFiller2DPtr(
+                           new Parent1v23Filler2D<FillYXZ>(ne2, ne1, ne3));
+        }
+      }
+    }
+
+    case PARENT_SECOND: {
+      if (type23 == SCALAR_SECOND) {
+        return DynamicFiller2DPtr(
+                      new Parent12Filler2D<FillXYZ>(ne1, ne2, ne3));
+      } else {
+        if (type13 == VECTOR_VECTOR) {
+          return DynamicFiller2DPtr(
+                           new Parent12v3Filler2D<FillXZY>(ne1, ne3, ne2));
+        } else if (type13 == PARENT_FIRST) {
+          // Not supported: Calculation of type23 will fail
+          return DynamicFiller2DPtr(
+                           new Parent1v2v3Filler2D<FillZXY>(ne3, ne1, ne2));
+        } else {
+          // type13 == PARENT_SECOND
+          // Assume type23 is VECTOR_VECTOR.
+          // type23 == PARENT_FIRST --> type13 == VECTOR_VECTOR
+          // type23 == PARENT_SECOND --> calculation of type13 will fail
+          return DynamicFiller2DPtr(
+                           new Parent1v23Filler2D<FillXYZ>(ne1, ne2, ne3));
+        }
       }
     }
   }
