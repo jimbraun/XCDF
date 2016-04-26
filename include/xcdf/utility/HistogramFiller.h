@@ -126,6 +126,7 @@ DynamicFiller1DPtr GetFiller(NodeRelationType type,
 
   switch (type) {
 
+    default:
     case SCALAR:
       return DynamicFiller1DPtr(new ScalarFiller1D(ne1, ne2));
 
@@ -381,6 +382,7 @@ DynamicFiller2DPtr GetFiller(NodeRelationType type12,
 
   switch (type12) {
 
+    default:
     case SCALAR: {
       if (type13 == SCALAR) {
         return DynamicFiller2DPtr(new ScalarFiller2D(ne1, ne2, ne3));

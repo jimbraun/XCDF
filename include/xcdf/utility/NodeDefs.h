@@ -185,6 +185,7 @@ class BinaryNode : public Node<ReturnType> {
     typename Policy::ReturnType
     ApplyToLargerNode(Policy policy) const {
       switch (type_) {
+        default:
         case SCALAR:
         case SCALAR_FIRST:
         case PARENT_FIRST:
