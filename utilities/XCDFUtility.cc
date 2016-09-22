@@ -106,6 +106,10 @@ void Info(std::vector<std::string>& infiles) {
     std::cout << std::endl;
   }
 
+  // Get the list of hard aliases in the header
+  std::set<XCDFAliasDescriptor> headerDescriptors;
+  headerDescriptors.insert(f.AliasDescriptorsBegin(), f.AliasDescriptorsEnd());
+
   // Load the event count to force load any aliases in trailers
   uint64_t eventCount = f.GetEventCount();
 
@@ -145,7 +149,12 @@ void Info(std::vector<std::string>& infiles) {
           break;
       }
 
-      std::cout << "'" << it->GetExpression() << "'" << std::endl;
+      std::string expOut = "'" + it->GetExpression() + "'";
+      if (headerDescriptors.find(*it) == headerDescriptors.end()) {
+        expOut += "  (soft)";
+      }
+
+      std::cout << expOut << std::endl;
     }
   }
 

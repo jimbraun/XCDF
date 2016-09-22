@@ -47,6 +47,7 @@ XCDF_ADD_LIBRARY (TARGET xcdf
   HEADERS include/xcdf/*.h
           include/xcdf/*.h.in
           include/xcdf/utility/*.h
+          include/xcdf/alias/*.h
   SOURCES src/*.cc)
 
 IF (PYTHONLIBS_FOUND)
