@@ -30,6 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <xcdf/utility/Symbol.h>
 #include <xcdf/utility/NodeDefs.h>
 #include <xcdf/utility/Expression.h>
+#include <xcdf/XCDFPtr.h>
+
 
 #include <vector>
 #include <list>
