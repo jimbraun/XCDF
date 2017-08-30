@@ -21,12 +21,24 @@ IF ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 ENDIF ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
 
+# -----------------------------------------------------------------------------
+# Set up CMake policies (if any)
+# -----------------------------------------------------------------------------
+IF (COMMAND cmake_policy)
+  CMAKE_POLICY(SET CMP0009 NEW)  # Do not follow symlinks w/ FILE_GLOB_RECURSE
+
+  IF ("${CMAKE_VERSION}" VERSION_GREATER 2.8.12)
+    CMAKE_POLICY(SET CMP0026 OLD)  # Read LOCATION properties from build targets
+    CMAKE_POLICY(SET CMP0042 OLD)  # Disable @rpath in target install name
+  ENDIF()
+ENDIF (COMMAND cmake_policy)
+
 # ------------------------------------------------------------------------------
 # Release information
 # ------------------------------------------------------------------------------
 SET (XCDF_MAJOR_VERSION  3 CACHE STRING "Major version number")
 SET (XCDF_MINOR_VERSION  0 CACHE STRING "Minor version number")
-SET (XCDF_PATCH_VERSION  0 CACHE STRING "Patch number")
+SET (XCDF_PATCH_VERSION  1 CACHE STRING "Patch number")
 
 # ------------------------------------------------------------------------------
 # Set up build paths 

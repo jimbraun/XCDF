@@ -49,6 +49,10 @@ class FieldNode : public Node<T> {
     T operator[](unsigned index) const {
       const T& datum = field_[index];
       return datum;
+<<<<<<< HEAD
+=======
+      //return field_[index];
+>>>>>>> 8d9d6fcde1000c8369a52eed108c8461af0de450
     }
     unsigned GetSize() const {return field_.GetSize();}
 
