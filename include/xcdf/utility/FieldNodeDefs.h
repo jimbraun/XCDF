@@ -46,7 +46,10 @@ class FieldNode : public Node<T> {
     FieldNode(ConstXCDFField<T> field) : field_(field) { }
 
     // Knowing size limits is up to the user
-    T operator[](unsigned index) const {return field_[index];}
+    T operator[](unsigned index) const {
+      const T& datum = field_[index];
+      return datum;
+    }
     unsigned GetSize() const {return field_.GetSize();}
 
     const std::string& GetName() const {return field_.GetName();}

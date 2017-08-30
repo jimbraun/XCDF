@@ -50,10 +50,10 @@ class DumpFieldVisitor {
   public:
 
     template <typename T>
-    void operator()(const XCDFField<T>& field) {
+    void operator()(ConstXCDFField<T> field) {
 
       std::cout << field.GetName() << ": ";
-      for (typename XCDFField<T>::ConstIterator
+      for (typename ConstXCDFField<T>::ConstIterator
                                         it = field.Begin();
                                         it != field.End(); ++it) {
 
@@ -70,7 +70,7 @@ class MatchFieldsVisitor {
                                               fieldSpecs_(fieldSpecs) { }
 
     template <typename T>
-    void operator()(const XCDFField<T>& field) {
+    void operator()(ConstXCDFField<T> field) {
 
       const std::string& name = field.GetName();
       for (std::set<std::string>::const_iterator
@@ -134,7 +134,7 @@ class PrintFieldNameVisitor {
                                             firstCall_(true) { }
 
     template <typename T>
-    void operator()(const XCDFField<T>& field) {
+    void operator()(ConstXCDFField<T> field) {
 
       if (!firstCall_) {
         std::cout << ",";
@@ -171,14 +171,14 @@ class PrintFieldDataVisitor {
     PrintFieldDataVisitor() : firstCall_(true) { }
 
     template <typename T>
-    void operator()(const XCDFField<T>& field) {
+    void operator()(ConstXCDFField<T> field) {
 
       if (!firstCall_) {
         std::cout << ",";
       }
       firstCall_ = false;
 
-      for (typename XCDFField<T>::ConstIterator
+      for (typename ConstXCDFField<T>::ConstIterator
                                         it = field.Begin();
                                         it != field.End(); ++it) {
 
@@ -203,7 +203,7 @@ class GetFieldNamesVisitor {
     GetFieldNamesVisitor(std::set<std::string>& set) : set_(set) { }
 
     template <typename T>
-    void operator()(const XCDFField<T>& field) {
+    void operator()(ConstXCDFField<T> field) {
 
       set_.insert(field.GetName());
     }
@@ -219,15 +219,15 @@ class FileCompare {
 
     FileCompare() { }
 
-    void operator()(const XCDFUnsignedIntegerField& field) {
+    void operator()(ConstXCDFUnsignedIntegerField field) {
       uiFields_.push_back(field);
     }
 
-    void operator()(const XCDFSignedIntegerField& field) {
+    void operator()(ConstXCDFSignedIntegerField field) {
       siFields_.push_back(field);
     }
 
-    void operator()(const XCDFFloatingPointField& field) {
+    void operator()(ConstXCDFFloatingPointField field) {
       flFields_.push_back(field);
     }
 
@@ -254,14 +254,14 @@ class FileCompare {
 
   private:
 
-    std::vector<XCDFUnsignedIntegerField> uiFields_;
-    std::vector<XCDFSignedIntegerField> siFields_;
-    std::vector<XCDFFloatingPointField> flFields_;
+    std::vector<ConstXCDFUnsignedIntegerField> uiFields_;
+    std::vector<ConstXCDFSignedIntegerField> siFields_;
+    std::vector<ConstXCDFFloatingPointField> flFields_;
 
     template <typename T>
     bool
-    CompareFieldVector(const std::vector<XCDFField<T> >& v1,
-                       const std::vector<XCDFField<T> >& v2) {
+    CompareFieldVector(const std::vector<ConstXCDFField<T> >& v1,
+                       const std::vector<ConstXCDFField<T> >& v2) {
       if (v1.size() != v2.size()) {
         return true;
       }
@@ -281,8 +281,8 @@ class FileCompare {
     // For integer operations
     template <typename T>
     bool
-    CompareVectorData(const std::vector<XCDFField<T> >& v1,
-                      const std::vector<XCDFField<T> >& v2) {
+    CompareVectorData(const std::vector<ConstXCDFField<T> >& v1,
+                      const std::vector<ConstXCDFField<T> >& v2) {
 
       if (v1.size() != v2.size()) {
         return true;
@@ -310,8 +310,8 @@ class FileCompare {
 
     // Specialization for double operations
     bool
-    CompareVectorData(const std::vector<XCDFField<double> >& v1,
-                      const std::vector<XCDFField<double> >& v2) {
+    CompareVectorData(const std::vector<ConstXCDFField<double> >& v1,
+                      const std::vector<ConstXCDFField<double> >& v2) {
 
       if (v1.size() != v2.size()) {
         return true;
@@ -467,7 +467,7 @@ class SelectFieldVisitor {
                                                buf_(buf) { }
 
     template <typename T>
-    void operator()(const XCDFField<T>& field) {
+    void operator()(XCDFField<T> field) {
 
       // Skip fields not specified to be copied
       if (fieldList_.find(field.GetName()) == fieldList_.end()) {
