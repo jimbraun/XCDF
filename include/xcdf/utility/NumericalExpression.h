@@ -31,10 +31,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <xcdf/utility/NodeDefs.h>
 #include <xcdf/utility/Expression.h>
 #include <xcdf/XCDFPtr.h>
-<<<<<<< HEAD
-=======
-
->>>>>>> 8d9d6fcde1000c8369a52eed108c8461af0de450
 
 #include <vector>
 #include <list>
