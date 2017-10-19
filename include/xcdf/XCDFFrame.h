@@ -60,7 +60,7 @@ class XCDFFrame {
 
   public:
 
-    XCDFFrame() : type_(NONE),
+    XCDFFrame() : type_(XCDF_NONE),
                   machineIsBigEndian_(TestBigEndian()) { }
 
     ~XCDFFrame() { }
