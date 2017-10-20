@@ -27,7 +27,7 @@ ENDIF ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
 IF (COMMAND cmake_policy)
   CMAKE_POLICY(SET CMP0009 NEW)  # Do not follow symlinks w/ FILE_GLOB_RECURSE
 
-  IF ("${CMAKE_VERSION}" VERSION_GREATER 3.0)
+  IF (("${CMAKE_VERSION}" VERSION_GREATER 3.0) OR ("${CMAKE_VERSION}" VERSION_EQUAL 3.0))
     CMAKE_POLICY(SET CMP0026 OLD)  # Read LOCATION properties from build targets
     CMAKE_POLICY(SET CMP0042 OLD)  # Disable @rpath in target install name
   ENDIF()
