@@ -87,7 +87,10 @@ class XCDFFieldDataScalar : public XCDFFieldData<T> {
 
     /// Get a value from the field.  Preserve At() call for vectors
     /// At(x) is undefined for x > 0 (or possibly x == 0).  Just return datum_.
-    virtual const T& At(const uint32_t index) const {return datum_;}
+    virtual const T& At(const uint32_t index) const {
+      UNUSED(index);
+      return datum_;
+    }
 
   protected:
 

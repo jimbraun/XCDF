@@ -110,4 +110,6 @@ U XCDFSafeTypePun(const T data) {
   return out;
 }
 
+#define UNUSED(x) (void)(x)
+
 #endif // XCDF_DEFS_INCLUDED_H

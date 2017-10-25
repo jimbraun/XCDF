@@ -766,8 +766,11 @@ class XCDFFile {
 
     // Close-on-destruction behavior prevents assignment/copy construction
     // Prevent these operations.
-    const XCDFFile& operator=(const XCDFFile& file) {return *this;}
-    XCDFFile(const XCDFFile& file) { }
+    const XCDFFile& operator=(const XCDFFile& file) {
+      UNUSED(file);
+      return *this;
+    }
+    XCDFFile(const XCDFFile& file) { UNUSED(file); }
 
 
     /* Check if calls have been made (e.g. calling Write(), opening the
