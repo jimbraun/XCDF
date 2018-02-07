@@ -658,23 +658,19 @@ class CSVInputHandler {
 
       // Parse the string
       size_t slPos = str.find_first_of("/");
-      if (str.size() < 3 ||
-          slPos == std::string::npos ||
+      if (slPos == std::string::npos ||
+          slPos == 0 ||
           slPos == str.size() - 1) {
         XCDFFatal("Bad field specifier string: " << str);
       }
-
       std::string fieldSpecifier = str.substr(0, slPos);
-      char fieldType = str[slPos + 1];
-
-      // Check if resolution is specified
-      std::string resStr = "";
-      slPos = str.find_first_of("/", slPos + 1);
-      if (slPos != std::string::npos) {
-        resStr = str.substr(slPos + 1, str.size() - slPos);
-      } else {
-        XCDFFatal("No resolution specified in string: " << str);
+      size_t typePos = str.find_first_of("/", slPos + 1);
+      if (typePos == std::string::npos ||
+          typePos == str.size() - 1) {
+        XCDFFatal("Bad field specifier string: " << str);
       }
+      char fieldType = str[slPos + 1];
+      std::string resStr = str.substr(typePos + 1, str.size() - slPos);
       std::stringstream strStream(resStr);
 
       // Check for parent;
@@ -693,43 +689,49 @@ class CSVInputHandler {
        parentName = "";
      }
 
-      switch (fieldType) {
-        case 'U': {
-          fieldTypeList_.push_back(XCDF_UNSIGNED_INTEGER);
-          uint64_t resolution;
-          strStream >> resolution;
-          unsignedFields_.push_back(f_.AllocateUnsignedIntegerField(
-                                        fieldName, resolution, parentName));
-          break;
-        }
+     switch (fieldType) {
+       case 'U': {
+         fieldTypeList_.push_back(XCDF_UNSIGNED_INTEGER);
+         uint64_t resolution;
+         strStream >> resolution;
+         unsignedFields_.push_back(f_.AllocateUnsignedIntegerField(
+                                       fieldName, resolution, parentName));
+         break;
+       }
 
-        case 'I': {
-          fieldTypeList_.push_back(XCDF_SIGNED_INTEGER);
-          int64_t resolution;
-          strStream >> resolution;
-          signedFields_.push_back(f_.AllocateSignedIntegerField(
-                                        fieldName, resolution, parentName));
-          break;
-        }
+       case 'I': {
+         fieldTypeList_.push_back(XCDF_SIGNED_INTEGER);
+         int64_t resolution;
+         strStream >> resolution;
+         signedFields_.push_back(f_.AllocateSignedIntegerField(
+                                       fieldName, resolution, parentName));
+         break;
+       }
 
-        case 'F': {
-          fieldTypeList_.push_back(XCDF_FLOATING_POINT);
-          double resolution;
-          strStream >> resolution;
-          floatingPointFields_.push_back(f_.AllocateFloatingPointField(
-                                        fieldName, resolution, parentName));
-          break;
-        }
-      }
-    }
+       case 'F': {
+         fieldTypeList_.push_back(XCDF_FLOATING_POINT);
+         double resolution;
+         strStream >> resolution;
+         floatingPointFields_.push_back(f_.AllocateFloatingPointField(
+                                       fieldName, resolution, parentName));
+         break;
+       }
+     }
 
-    std::vector<XCDFUnsignedIntegerField> unsignedFields_;
-    std::vector<XCDFSignedIntegerField> signedFields_;
-    std::vector<XCDFFloatingPointField> floatingPointFields_;
+     // If we haven't read all the characters, we have a problem
+     std::string test;
+     if (strStream >> test) {
+       XCDFFatal("Found extra characters in specifier string: " << str);
+     }
+   }
 
-    std::vector<XCDFFieldType> fieldTypeList_;
-    std::vector<std::string> currentParsedLine_;
-    std::string currentLine_;
+   std::vector<XCDFUnsignedIntegerField> unsignedFields_;
+   std::vector<XCDFSignedIntegerField> signedFields_;
+   std::vector<XCDFFloatingPointField> floatingPointFields_;
+
+   std::vector<XCDFFieldType> fieldTypeList_;
+   std::vector<std::string> currentParsedLine_;
+   std::string currentLine_;
 };
 
 class AliasAdder {
