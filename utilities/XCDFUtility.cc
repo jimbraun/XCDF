@@ -1174,24 +1174,24 @@ void PrintUsage() {
 
     "    add-alias name \"expression\" {-o outfile} {infiles}:\n\n" <<
 
-    "                    Add an alias to \"infile\" consisting of a numerical" <<
-    "                    expression.  The expression may contain fields, e.g." <<
-    "                    \'xcdf add-alias myAlias \"abs(field1)\" myFile.xcd" <<
-    "                    creates the alias \'myAlias\' that contains the absolute" <<
-    "                    value of XCDF field \'field1\'. \'myAlias\' may then be" <<
-    "                    selections and other expressions.  If an output file is not" <<
-    "                    specified, the alias is added in-place to the existing" <<
-    "                    file if possible.  If an output file is specified," <<
-    "                    adding an alias with the same name as an existing alias" <<
-    "                    replaces that alias with the new expression.  Note that" <<
-    "                    aliases added in-place are not available when reading an" <<
+    "                    Add an alias to \"infile\" consisting of a numerical\n" <<
+    "                    expression.  The expression may contain fields, e.g.\n" <<
+    "                    \'xcdf add-alias myAlias \"abs(field1)\" myFile.xcd\n" <<
+    "                    creates the alias \'myAlias\' that contains the absolute\n" <<
+    "                    value of XCDF field \'field1\'. \'myAlias\' may then be\n" <<
+    "                    selections and other expressions.  If an output file is not\n" <<
+    "                    specified, the alias is added in-place to the existing\n" <<
+    "                    file if possible.  If an output file is specified,\n" <<
+    "                    adding an alias with the same name as an existing alias\n" <<
+    "                    replaces that alias with the new expression.  Note that\n" <<
+    "                    aliases added in-place are not available when reading an\n" <<
     "                    XCDF file using a stream or pipe.\n\n" <<
 
     "    remove-alias name {-o outfile} {infiles}:\n\n" <<
 
-    "                    Remove an alias from \"infile\".  If an output file is" <<
-    "                    not specified, the removal is done in-place if possible." <<
-    "                    Only aliases added in-place may be removed in-place." <<
+    "                    Remove an alias from \"infile\".  If an output file is\n" <<
+    "                    not specified, the removal is done in-place if possible.\n" <<
+    "                    Only aliases added in-place may be removed in-place.\n\n" <<
 
     "    histogram \"histogram expression\" {infiles}:\n\n" <<
     "                    Create a histogram from the selected files according to\n" <<
