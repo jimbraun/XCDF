@@ -306,7 +306,7 @@ XCDFFieldIterator_dealloc(XCDFFieldIterator* self) {
     delete self->selector_;
   }
   #if PY_MAJOR_VERSION >= 3
-  PyTYPE(self)->tp_free((PyObject*)self);
+  Py_TYPE(self)->tp_free((PyObject*)self);
   #else
   self->ob_type->tp_free((PyObject*)self);
   #endif
