@@ -528,7 +528,7 @@ XCDFField_iterator(pyxcdf_XCDFFile* self, PyObject* fieldName)
     it->iTotal_ = self->file_->GetEventCount();
     #if PY_MAJOR_VERSION >= 3
     it->selector_ = new FieldsByNameSelector(
-                         PyBytesAsString(fieldName), *(self->file_));
+                         PyBytes_AsString(fieldName), *(self->file_));
     #else
     it->selector_ = new FieldsByNameSelector(
                          PyString_AsString(fieldName), *(self->file_));
