@@ -40,7 +40,11 @@ XCDFFile_new(PyTypeObject* type, PyObject* args, PyObject* kwds)
 {
   pyxcdf_XCDFFile* self = (pyxcdf_XCDFFile*)type->tp_alloc(type, 0);
   if (self != NULL) {
+    #if PY_MAJOR_VERSION >= 3
+    self->filename_ = PyBytes_FromString("");
+    #else
     self->filename_ = PyString_FromString("");
+    #endif
     if (self->filename_ == NULL) {
       Py_DECREF(self);
       return NULL;
@@ -71,14 +75,22 @@ XCDFFile_init(pyxcdf_XCDFFile* self, PyObject* args)
 
     char mode[10];
     if (filemode) {
+      #if PY_MAJOR_VERSION >= 3
+      char* tmp = PyBytes_AsString(filemode);
+      #else
       char* tmp = PyString_AsString(filemode);
+      #endif
       strcpy(mode, tmp);
     }
     else
       strcpy(mode, "R");
 
     try {
+      #if PY_MAJOR_VERSION >= 3
+      self->file_ = new XCDFFile(PyBytes_AsString(filename), mode);
+      #else
       self->file_ = new XCDFFile(PyString_AsString(filename), mode);
+      #endif
     }
     catch (const XCDFException& e) {
       PyErr_SetString(pyxcdf_XCDFException, e.GetMessage().c_str());
@@ -96,7 +108,11 @@ XCDFFile_dealloc(pyxcdf_XCDFFile* self)
   Py_XDECREF(self->filename_);
   if (self->file_)
     delete self->file_;
+  #if PY_MAJOR_VERSION >= 3
+  Py_TYPE(self)->tp_free((PyObject*)self);
+  #else
   self->ob_type->tp_free((PyObject*)self);
+  #endif
 }
 
 // Member definitions for XCDFFile object
@@ -142,7 +158,11 @@ XCDFRecordIterator_dealloc(XCDFRecordIterator* self) {
   if (self->selectField_) {
     delete self->selectField_;
   }
+  #if PY_MAJOR_VERSION >= 3
+  Py_TYPE(self)->tp_free((PyObject*)self);
+  #else
   self->ob_type->tp_free((PyObject*)self);
+  #endif
 }
 
 // Define __iter__()
@@ -231,7 +251,11 @@ XCDFRecordIteratorType =
     0,                                          // tp_getattro
     0,                                          // tp_setattro
     0,                                          // tp_as_buffer
+    #if PY_MAJOR_VERSION >= 3
+    Py_TPFLAGS_DEFAULT,                         // use tp_iter and tp_iternext
+    #else
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_ITER,  // use tp_iter and tp_iternext
+    #endif
     "Internal record iterator object",          // tp_doc
     0,                                          // tp_traverse
     0,                                          // tp_clear
@@ -281,7 +305,11 @@ XCDFFieldIterator_dealloc(XCDFFieldIterator* self) {
   if (self->selector_) {
     delete self->selector_;
   }
+  #if PY_MAJOR_VERSION >= 3
+  Py_TYPE(self)->tp_free((PyObject*)self);
+  #else
   self->ob_type->tp_free((PyObject*)self);
+  #endif
 }
 
 // Define __iter__()
@@ -345,7 +373,11 @@ XCDFFieldIteratorType =
     0,                                          // tp_getattro
     0,                                          // tp_setattro
     0,                                          // tp_as_buffer
+    #if PY_MAJOR_VERSION >= 3
+    Py_TPFLAGS_DEFAULT,                         // use tp_iter and tp_iternext
+    #else
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_ITER,  // use tp_iter and tp_iternext
+    #endif
     "Internal field iterator object",           // tp_doc
     0,                                          // tp_traverse
     0,                                          // tp_clear
@@ -386,7 +418,11 @@ XCDFFile_header(pyxcdf_XCDFFile* self)
     HeaderVisitor hvisitor(*(self->file_), ostr);
     self->file_->ApplyFieldVisitor(hvisitor);
 
+    #if PY_MAJOR_VERSION >= 3
+    PyObject* result = PyBytes_FromString(ostr.str().c_str());
+    #else
     PyObject* result = PyString_FromString(ostr.str().c_str());
+    #endif
     return result;
   }
   catch (const XCDFException& e) {
@@ -426,7 +462,11 @@ XCDFRecord_iterator(pyxcdf_XCDFFile* self, PyObject* args, PyObject* kwargs)
   const char* selectExpression = "true";
   if (select) {
     // Use the user-provided event selection
+    #if PY_MAJOR_VERSION >= 3
+    selectExpression = PyBytes_AsString(select);
+    #else
     selectExpression = PyString_AsString(select);
+    #endif
   }
 
   XCDFRecordIterator* it = NULL;
@@ -444,8 +484,14 @@ XCDFRecord_iterator(pyxcdf_XCDFFile* self, PyObject* args, PyObject* kwargs)
     it->iTotal_ = self->file_->GetEventCount();
     it->selectEvent_ = EventSelectExpression(selectExpression, *(self->file_));
     if (fields) {
+
+      #if PY_MAJOR_VERSION >= 3
+      it->selectField_ = new FieldsByNameSelector(
+                             PyBytes_AsString(fields), *(self->file_));
+      #else
       it->selectField_ = new FieldsByNameSelector(
                              PyString_AsString(fields), *(self->file_));
+      #endif
     }
 
     return (PyObject*)it;
@@ -480,8 +526,13 @@ XCDFField_iterator(pyxcdf_XCDFFile* self, PyObject* fieldName)
     it->file_ = self->file_;
     it->iCurrent_ = 0;
     it->iTotal_ = self->file_->GetEventCount();
+    #if PY_MAJOR_VERSION >= 3
+    it->selector_ = new FieldsByNameSelector(
+                         PyBytes_AsString(fieldName), *(self->file_));
+    #else
     it->selector_ = new FieldsByNameSelector(
                          PyString_AsString(fieldName), *(self->file_));
+    #endif
     return (PyObject*)it;
   }
   catch (const XCDFException& e) {
@@ -514,7 +565,11 @@ XCDFFile_getRecord(pyxcdf_XCDFFile* self, PyObject* args)
   PyObject* result = NULL;
   try {
     // Seek to a given record ID in the file
+    #if PY_MAJOR_VERSION >= 3
+    uint64_t id = PyLong_AsUnsignedLongLongMask(recordId);
+    #else
     uint64_t id = PyInt_AsUnsignedLongLongMask(recordId);
+    #endif
 
     if (self->file_->Seek(id)) {
 
@@ -527,8 +582,13 @@ XCDFFile_getRecord(pyxcdf_XCDFFile* self, PyObject* args)
       } else {
 
         // Only copy the selected fields
+        #if PY_MAJOR_VERSION >= 3
+        FieldsByNameSelector selector =
+            FieldsByNameSelector(PyBytes_AsString(fields), *(self->file_));
+        #else
         FieldsByNameSelector selector =
             FieldsByNameSelector(PyString_AsString(fields), *(self->file_));
+        #endif
         result = selector.GetTuple();
       }
 
@@ -572,25 +632,42 @@ XCDFFile_addField(pyxcdf_XCDFFile* self, PyObject* args)
       return NULL;
     }
 
+    #if PY_MAJOR_VERSION >= 3
+    char *nameStr = PyBytes_AsString(name);
+    XCDFFieldType ftype = static_cast<XCDFFieldType>(PyLong_AsLong(type));
+    #else
     char *nameStr = PyString_AsString(name);
     XCDFFieldType ftype = static_cast<XCDFFieldType>(PyInt_AsLong(type));
+    #endif
 
     char parent[80];
     if (pnam)
+      #if PY_MAJOR_VERSION >= 3
+      strcpy(parent, PyBytes_AsString(pnam));
+      #else
       strcpy(parent, PyString_AsString(pnam));
+      #endif
     else
       strcpy(parent, "");
 
     switch (ftype) {
       case XCDF_UNSIGNED_INTEGER:
       {
+        #if PY_MAJOR_VERSION >= 3
+        uint64_t res = PyLong_AsUnsignedLongLongMask(reso);
+        #else
         uint64_t res = PyInt_AsUnsignedLongLongMask(reso);
+        #endif
         self->file_->AllocateUnsignedIntegerField(nameStr, res, parent);
         break;
       }
       case XCDF_SIGNED_INTEGER:
       {
+        #if PY_MAJOR_VERSION >= 3
+        int64_t res = PyLong_AsLong(reso);
+        #else
         int64_t res = PyInt_AsLong(reso);
+        #endif
         self->file_->AllocateSignedIntegerField(nameStr, res, parent);
         break;
       }
@@ -741,10 +818,10 @@ static PyMethodDef pyxcdf_methods[] =
 // _________________________
 // Python module definition \___________________________________________________
 #if PY_MAJOR_VERSION >= 3
-  static struct PyModuleDef pyxdfModule = {
+  static struct PyModuleDef pyxcdfModule = {
     PyModuleDef_HEAD_INIT,
     "pyxcdf",                 // m_name
-    modDoc,                   // m_doc
+    NULL,                   // m_doc
     -1,                       // m_size
   };
 
