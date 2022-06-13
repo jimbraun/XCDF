@@ -33,5 +33,12 @@ PYBIND11_MODULE(xcdf, m) {
             }
             return comments;
         })
+        .def("__iter__", [](XCDFFile& self){ return &self;})
+        .def("__next__", [](XCDFFile& self){
+            int ret = self.Read();
+            if (ret == 0) {
+                throw pybind11::stop_iteration();
+            }
+        })
         ;
 }
