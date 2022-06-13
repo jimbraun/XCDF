@@ -3,6 +3,7 @@
 #include <sstream>
 
 #include "xcdf/XCDFFile.h"
+#include "XCDFTupleSetter.h"
 
 namespace py = pybind11;
 
@@ -33,12 +34,23 @@ PYBIND11_MODULE(xcdf, m) {
             }
             return comments;
         })
+        .def_property_readonly("field_names", [](XCDFFile& self) {
+            std::vector<std::string> names;
+            names.reserve(self.GetNFields());
+            for (auto field = self.FieldDescriptorsBegin(); field != self.FieldDescriptorsEnd(); field++) {
+                names.push_back(field->name_);
+            }
+            return names;
+        }) 
         .def("__iter__", [](XCDFFile& self){ return &self;})
         .def("__next__", [](XCDFFile& self){
             int ret = self.Read();
             if (ret == 0) {
                 throw pybind11::stop_iteration();
             }
+            TupleSetter tsetter(self.GetNFields());
+            self.ApplyFieldVisitor(tsetter);
+            return py::handle(tsetter.GetTuple());
         })
         ;
 }
