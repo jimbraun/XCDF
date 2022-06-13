@@ -72,6 +72,7 @@ if(BUILD_PYTHON)
     pybind11_add_module(pyxcdf python/xcdf.cpp)
     set_target_properties(pyxcdf PROPERTIES OUTPUT_NAME xcdf)
     target_link_libraries(pyxcdf PRIVATE xcdf)
+    target_include_directories(pyxcdf PRIVATE python)
 endif()
 
 

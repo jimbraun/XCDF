@@ -50,7 +50,7 @@ PYBIND11_MODULE(xcdf, m) {
             }
             TupleSetter tsetter(self.GetNFields());
             self.ApplyFieldVisitor(tsetter);
-            return py::handle(tsetter.GetTuple());
+            return pybind11::reinterpret_borrow<py::object>(tsetter.GetTuple());
         })
         ;
 }
