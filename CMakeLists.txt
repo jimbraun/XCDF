@@ -45,7 +45,6 @@ SET (XCDF_PATCH_VERSION  1 CACHE STRING "Patch number")
 # ------------------------------------------------------------------------------
 SET (CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 INCLUDE (Utility)
-INCLUDE (Python)
 
 INCLUDE_DIRECTORIES (${CMAKE_SOURCE_DIR}/include)
 INCLUDE_DIRECTORIES (${CMAKE_SOURCE_DIR}/include/utility)
@@ -62,31 +61,19 @@ XCDF_ADD_LIBRARY (TARGET xcdf
           include/xcdf/alias/*.h
   SOURCES src/*.cc)
 
-IF (PYTHONLIBS_FOUND)
-  MESSAGE (STATUS "Will build python bindings for XCDF")
 
-  # Build the python bindings
-  # Python breaks strict-aliasing rules, so we must disable this optimization
-  INCLUDE_DIRECTORIES (${PYTHON_INCLUDE_DIR})
-  ADD_LIBRARY (pyxcdf MODULE src/pybindings/PyXCDF.cc)
-  TARGET_LINK_LIBRARIES (pyxcdf xcdf ${PYTHON_LIBRARIES})
-  SET_TARGET_PROPERTIES (pyxcdf PROPERTIES
-    PREFIX ""
-    COMPILE_FLAGS "-fno-strict-aliasing"
-    OUTPUTNAME pyxcdf)
-  INSTALL (TARGETS pyxcdf LIBRARY DESTINATION lib/xcdf)
+OPTION(BUILD_PYTHON "Build python bindings" ON)
+if(BUILD_PYTHON)
+    add_subdirectory(${PROJECT_SOURCE_DIR}/extern/pybind11 )
 
-  # Install __init__.py and other scripts into lib/xcdf
-  CONFIGURE_FILE (${CMAKE_CURRENT_SOURCE_DIR}/python/__init__.py.in
-                  ${CMAKE_CURRENT_BINARY_DIR}/__init__.py
-                  @ONLY)
-  INSTALL (FILES ${CMAKE_CURRENT_BINARY_DIR}/__init__.py
-                 ${CMAKE_CURRENT_SOURCE_DIR}/python/Histogram.py
-          DESTINATION lib/xcdf
-          PERMISSIONS OWNER_READ OWNER_WRITE
-                      GROUP_READ GROUP_WRITE
-                      WORLD_READ)
-ENDIF ()
+    # to avoid a naming conflict with the cpp library but still
+    # have the python module called "xcdf" we have the cmake target pyxcdf
+    # and set its outputname to xcdf
+    pybind11_add_module(pyxcdf python/xcdf.cpp)
+    set_target_properties(pyxcdf PROPERTIES OUTPUT_NAME xcdf)
+    target_link_libraries(pyxcdf PRIVATE xcdf)
+endif()
+
 
 XCDF_ADD_EXECUTABLE (TARGET seek-test SOURCES tests/SeekTest.cc)
 XCDF_ADD_EXECUTABLE (TARGET concat-seek-test SOURCES tests/ConcatSeekTest.cc)
