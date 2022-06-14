@@ -1,0 +1,11 @@
+# Editors and IDEs
+**/.vscode
+
+# C extensions
+*.so
+
+# Python distribution / packaging
+**/*.egg-info
+
+# scikit-build
+**/_skbuild
