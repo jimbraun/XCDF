@@ -29,11 +29,7 @@
 
 __version__ = "$Id$"
 
-try:
-    import numpy as np
-except ImportError,e:
-    print e
-    raise SystemExit
+import numpy as np
 
 class Histogram:
     """Histogram class that implements fixed and variable binning, and can be
