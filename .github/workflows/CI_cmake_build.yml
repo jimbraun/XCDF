@@ -1,0 +1,41 @@
+name: C/C++ CI based on CMake
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  cmake_build:
+    name: "CMake build"
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["2.7", "3.7", "3.8", "3.9", "3.10"]
+    steps:
+      - uses: actions/checkout@@v2.4.2
+        with:
+          submodules: true
+      - uses: actions/setup-python@v4.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: "Build"
+        run: |
+          echo "Installing dependencies"
+          wget -qO /etc/apt/trusted.gpg.d/kitware-key.asc https://apt.kitware.com/keys/kitware-archive-latest.asc
+          echo "deb https://apt.kitware.com/ubuntu/ focal main" | sudo tee /etc/apt/sources.list.d/kitware.list
+          apt update
+          apt install -y cmake build-essential
+          echo "Tools versions"
+          cmake --version
+          cc --version
+          c++ --version
+          python --version
+          echo "Configuring project...."
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=~/.local/xcdf
+          echo "Building project...."
+          cmake --build build -- -j 2
+          echo "Installing project..."
+          cmake --install build
+          echo "CI job concluded."
