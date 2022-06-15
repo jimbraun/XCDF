@@ -6,7 +6,7 @@ on:
 
 jobs:
   cmake_build:
-    name: CMake build
+    name: CMake + Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -18,7 +18,16 @@ jobs:
       - uses: actions/setup-python@v4.0.0
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Build with Python ${{ matrix.python-version }} bindings
+      - name: Install dependencies
+        run: |
+          echo "Installing dependencies..."
+          sudo apt update
+          sudo apt install -y cmake build-essential pybind11-dev
+          cmake --version
+          cc --version
+          c++ --version
+          python --version
+      - name: Build and install XCDF with Python bindings
         run: |
           echo "Installing dependencies"
           sudo apt update
@@ -28,12 +37,15 @@ jobs:
           cc --version
           c++ --version
           python --version
-          echo "Configuring project...."
+          echo "Configuring...."
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_INSTALL_PREFIX=~/.local/xcdf
-          echo "Building project...."
+          echo "Building...."
           cmake --build build -- -j 2
-          echo "Installing project..."
+          echo "Installing..."
           cmake --install build
-          echo "CI job concluded."
+      - name: Test suite
+        run: |
+          cd build
+          make test

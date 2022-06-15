@@ -146,3 +146,16 @@ SET(CPACK_SOURCE_IGNORE_FILES "[.]svn;[.]setting;[.].*project;[.]git.*")
 
 SET(CPACK_SOURCE_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}")
 INCLUDE(CPack)
+
+# ---------------------
+# Testing suite
+# ---------------------
+include(CTest)
+
+add_test(NAME seek-test COMMAND xcdf-seek-test)
+add_test(NAME concat-seek-test COMMAND xcdf-concat-seek-test)
+add_test(NAME random-test COMMAND xcdf-random-test)
+add_test(NAME speed-test COMMAND xcdf-speed-test)
+add_test(NAME simple-test COMMAND xcdf-simple-test)
+add_test(NAME buffer-fill-test COMMAND xcdf-buffer-fill-test)
+add_test(NAME append-test COMMAND xcdf-append-test)
