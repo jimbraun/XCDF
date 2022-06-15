@@ -72,7 +72,7 @@ XCDF_ADD_LIBRARY(TARGET xcdf
 OPTION(BUILD_PYTHON "Build python bindings" ON)
 
 if(BUILD_PYTHON)
-  add_subdirectory(${PROJECT_SOURCE_DIR}/extern/pybind11)
+  message(STATUS "Will build python bindings for XCDF")
 
   if(SKBUILD)
     message(STATUS "The project is built using scikit-build")
