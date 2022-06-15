@@ -21,8 +21,6 @@ jobs:
       - name: "Build"
         run: |
           echo "Installing dependencies"
-          wget -qO /etc/apt/trusted.gpg.d/kitware-key.asc https://apt.kitware.com/keys/kitware-archive-latest.asc
-          echo "deb https://apt.kitware.com/ubuntu/ focal main" | sudo tee /etc/apt/sources.list.d/kitware.list
           apt update
           apt install -y cmake build-essential
           echo "Tools versions"
