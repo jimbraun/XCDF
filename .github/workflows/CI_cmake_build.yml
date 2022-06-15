@@ -21,8 +21,8 @@ jobs:
       - name: "Build"
         run: |
           echo "Installing dependencies"
-          apt update
-          apt install -y cmake build-essential
+          sudo apt update
+          sudo apt install -y cmake build-essential
           echo "Tools versions"
           cmake --version
           cc --version
