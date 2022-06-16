@@ -96,20 +96,9 @@ if(BUILD_PYTHON)
   pybind11_add_module(pyxcdf src/pybindings/xcdf/xcdf.cpp)
   set_target_properties(pyxcdf PROPERTIES OUTPUT_NAME xcdf)
   target_link_libraries(pyxcdf PRIVATE xcdf)
-  target_include_directories(pyxcdf PRIVATE src/pybindings/xcdf)
 
   if(SKBUILD)
-    if(APPLE)
-      set_target_properties(pyxcdf PROPERTIES
-        INSTALL_RPATH "@executable_path/lib:${INSTALL_RPATH}"
-      )
-    else()
-      set_target_properties(pyxcdf PROPERTIES
-        INSTALL_RPATH "\$ORIGIN/lib:${INSTALL_RPATH}"
-      )
-    endif()
-
-    install(TARGETS pyxcdf DESTINATION .)
+    install(TARGETS pyxcdf xcdf DESTINATION .)
   else()
     install(TARGETS pyxcdf DESTINATION lib)
   endif()
