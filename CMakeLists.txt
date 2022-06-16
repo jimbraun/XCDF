@@ -94,6 +94,7 @@ if(BUILD_PYTHON)
   # have the python module called "xcdf" we have the cmake target pyxcdf
   # and set its outputname to xcdf
   pybind11_add_module(pyxcdf src/pybindings/xcdf/xcdf.cpp)
+
   set_target_properties(pyxcdf PROPERTIES OUTPUT_NAME xcdf)
   target_link_libraries(pyxcdf PRIVATE xcdf)
 
