@@ -18,8 +18,10 @@
   bit-packing to store the field at the given accuracy for a given set of
   values, and therefore provides substantial compression.
 
-  Python bindings for XCDF are written and maintained by Segev BenZvi at the
+  Python2 bindings for XCDF are written and maintained by Segev BenZvi at the
   University of Wisconsin-Madison.
+
+  Python3 bindings have been added using [pybind11](https://pybind11.readthedocs.io/en/stable/) by and Maximilian Nöthe from TU Dortmund (Germany) and Michele Peresano from the University of Turin (Italy).
 
 ## Description
 
