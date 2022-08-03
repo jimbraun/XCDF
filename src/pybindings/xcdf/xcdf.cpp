@@ -179,6 +179,7 @@ PYBIND11_MODULE(xcdf, m)
         .def_property_readonly("version", &XCDFFile::GetVersion)
         .def_property_readonly("n_fields", &XCDFFile::GetNFields)
         .def_property_readonly("is_simple", &XCDFFile::IsSimple)
+        .def_property_readonly("is_open", &XCDFFile::IsOpen)
         .def_property_readonly("comments", [](XCDFFile &self)
                                {
             std::vector<std::string> comments;
