@@ -214,5 +214,9 @@ PYBIND11_MODULE(xcdf, m)
             }
             DictBuilder builder;
             self.ApplyFieldVisitor(builder);
-            return builder.data; });
+            return builder.data; })
+        .def("__enter__", [](XCDFFile &self)
+             { return &self; })
+        .def("__exit__", [&](XCDFFile &r, void *exc_type, void *exc_value, void *traceback)
+             { r.Close();  });
 }
