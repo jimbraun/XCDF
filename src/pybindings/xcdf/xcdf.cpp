@@ -159,7 +159,15 @@ PYBIND11_MODULE(xcdf, m)
                 << ", raw_resolution=" << self.rawResolution_
                 << ")";
 
-            return ss.str(); });
+            return ss.str(); })
+        .def_property_readonly("name", [](XCDFFieldDescriptor &self)
+                               { return self.name_; })
+        .def_property_readonly("type", [](XCDFFieldDescriptor &self)
+                               { return self.type_; })
+        .def_property_readonly("parent", [](XCDFFieldDescriptor &self)
+                               { return self.parentName_; })
+        .def_property_readonly("raw_resolution", [](XCDFFieldDescriptor &self)
+                               { return self.rawResolution_; });
 
     py::class_<XCDFFile>(m, "File")
         .def(py::init<const char *, const char *>())
