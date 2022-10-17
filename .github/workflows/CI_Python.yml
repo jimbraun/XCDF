@@ -23,3 +23,5 @@ jobs:
         run: |
           pip install .
           python -c "from xcdf import __version__; print(f'XCDF python bindings v{__version__}')"
+          pip install pytest
+          pytest
