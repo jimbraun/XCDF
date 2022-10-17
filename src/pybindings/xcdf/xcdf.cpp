@@ -176,6 +176,11 @@ PYBIND11_MODULE(xcdf, m)
         .def("rewind", &XCDFFile::Rewind)
         .def("__len__", &XCDFFile::GetEventCount)
         .def("__in__", &XCDFFile::HasField)
+        .def("check", [](XCDFFile &self){
+            // Allow internal checksum verification to detect errors
+            while (self.Read()) { /* Do nothing */ }
+            self.Close();
+        })
         .def_property_readonly("version", &XCDFFile::GetVersion)
         .def_property_readonly("n_fields", &XCDFFile::GetNFields)
         .def_property_readonly("is_simple", &XCDFFile::IsSimple)
