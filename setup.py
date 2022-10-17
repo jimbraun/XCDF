@@ -17,7 +17,4 @@ setup(
     package_dir={"": "src/pybindings"},
     cmake_install_dir="src/pybindings/xcdf",
     include_package_data=True,
-    extras_require={"test": ["pytest"]},
-    install_requires=["numpy"],
-    python_requires=">=3.7",
 )
