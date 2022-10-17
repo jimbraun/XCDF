@@ -1,13 +1,18 @@
 # C extensions
 *.so
 
-# Python compiled-bytecode / distribution / packaging / testing
+# Python
 **/*.egg-info
 **/*.pyc
 **/__pycache__
+**/.pytest_cache
+**/.ipynb_checkpoints
 
+# Build material
 # scikit-build
 **/_skbuild
+# CMake
+**/build
 
 # Data files
 **/*.xcd
