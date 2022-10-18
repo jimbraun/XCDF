@@ -4,13 +4,14 @@ from xcdf import write_test_file
 from xcdf import File
 
 
-def test_read():
+def test_read(tmp_path):
 
     # Create the test file
-    write_test_file()
+    path = str(tmp_path / "testfile.xcdf")
+    write_test_file(path)
 
     # Open the file
-    input_file = File("test_file_for_pybindings.xcd", "r")
+    input_file = File(path, "r")
 
     # Check that 9 Fields have been written
     assert input_file.n_fields == 9

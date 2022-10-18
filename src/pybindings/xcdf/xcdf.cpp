@@ -22,9 +22,9 @@ std::string getVersion()
     return ss.str();
 }
 
-int write_test_file()
+void write_test_file(const std::string& path)
 {
-    XCDFFile f("test_file_for_pybindings.xcd", "w");
+    XCDFFile f(path.c_str(), "w");
 
     XCDFUnsignedIntegerField field1 =
         f.AllocateUnsignedIntegerField("field1", 1);
@@ -59,7 +59,7 @@ int write_test_file()
     field8 << 2 << 1;
     field9 << 1. << 2. << 3.;
 
-    std::cout << f.Write() << std::endl;
+    f.Write();
 
     field1 << 2;
     field2 << 1 << 3;
@@ -78,7 +78,7 @@ int write_test_file()
     field8 << 2 << 2 << 1 << 1;
     field9 << 1. << 2. << 3. << 4. << 5. << 6.;
 
-    std::cout << f.Write() << std::endl;
+    f.Write();
 
     for (int k = 0; k < 1000; k++)
     {
@@ -98,10 +98,6 @@ int write_test_file()
 
     // Trailer alias
     f.CreateAlias("testTrailerAlias", "double(testAlias + 2)");
-
-    f.Close();
-
-    return 0;
 }
 
 struct DictBuilder
@@ -170,7 +166,7 @@ PYBIND11_MODULE(xcdf, m)
                                { return self.rawResolution_; });
 
     py::class_<XCDFFile>(m, "File")
-        .def(py::init<const char *, const char *>())
+        .def(py::init<const char *, const char *>(), py::arg("path"), py::arg("mode") = "r")
         .def("close", &XCDFFile::Close)
         .def("seek", &XCDFFile::Seek)
         .def("rewind", &XCDFFile::Rewind)
