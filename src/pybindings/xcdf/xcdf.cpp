@@ -22,7 +22,7 @@ std::string getVersion()
     return ss.str();
 }
 
-void write_test_file(const std::string& path)
+void write_test_file(const std::string &path)
 {
     XCDFFile f(path.c_str(), "w");
 
@@ -166,58 +166,82 @@ PYBIND11_MODULE(xcdf, m)
                                { return self.rawResolution_; });
 
     py::class_<XCDFFile>(m, "File")
-        .def(py::init<const char *, const char *>(), py::arg("path"), py::arg("mode") = "r")
-        .def("close", &XCDFFile::Close)
-        .def("seek", &XCDFFile::Seek)
-        .def("rewind", &XCDFFile::Rewind)
-        .def("__len__", &XCDFFile::GetEventCount)
-        .def("__in__", &XCDFFile::HasField)
-        .def("check", [](XCDFFile &self){
-            // Allow internal checksum verification to detect errors
+        .def(py::init<const char *, const char *>(),
+             py::arg("path"), py::arg("mode") = "r",
+             "Open a disk file in the specified mode.")
+        .def("close", &XCDFFile::Close, R"(Close the File instance.
+        
+        Underlying file/stream resources will be closed
+        and released unless the stream open/close constructors were invoked.
+        Fields will be deallocated.
+        If writing, do end checks to ensure all data is written out to file.
+
+        )")
+        .def("seek", &XCDFFile::Seek, py::arg("absolute event position"), "Seek to the given event in the file by absolute position.")
+        .def("rewind", &XCDFFile::Rewind, "Return the file to a state where calling Read() gives the starting event, if possible.")
+        .def("__len__", &XCDFFile::GetEventCount, "Return the total number of events in the file.")
+        .def("__in__", &XCDFFile::HasField, "Check if the file contains the given field.")
+        .def(
+            "check", [](XCDFFile &self)
+            {
             while (self.Read()) { /* Do nothing */ }
-            self.Close();
-        })
-        .def_property_readonly("version", &XCDFFile::GetVersion)
-        .def_property_readonly("n_fields", &XCDFFile::GetNFields)
-        .def_property_readonly("is_simple", &XCDFFile::IsSimple)
-        .def_property_readonly("is_open", &XCDFFile::IsOpen)
-        .def_property_readonly("comments", [](XCDFFile &self)
-                               {
+            self.Close(); },
+            "Check file by allow internal checksum verification to detect errors.")
+        .def_property_readonly("version", &XCDFFile::GetVersion, "Get the version number of the current open file.")
+        .def_property_readonly("n_fields", &XCDFFile::GetNFields, "Get the total number of fields allocated in the file.")
+        .def_property_readonly("is_simple", &XCDFFile::IsSimple, "Check if the underlying file has a trailer pointer that can be seek to.")
+        .def_property_readonly("is_open", &XCDFFile::IsOpen, "Check if the file is currently open.")
+        .def_property_readonly(
+            "comments", [](XCDFFile &self)
+            {
             std::vector<std::string> comments;
             comments.reserve(self.GetNComments());
             for (auto it = self.CommentsBegin(); it != self.CommentsEnd(); it++) {
                 comments.push_back(*it);
             }
-            return comments; })
-        .def_property_readonly("fields", [](XCDFFile &self)
-                               {
+            return comments; },
+            "Get the XCDF file comments (file header)")
+        .def_property_readonly(
+            "fields", [](XCDFFile &self)
+            {
             std::vector<XCDFFieldDescriptor> fields;
             fields.reserve(self.GetNFields());
             for (auto it = self.FieldDescriptorsBegin(); it != self.FieldDescriptorsEnd(); it++) {
                 fields.push_back(*it);
             }
-            return fields; })
-        .def_property_readonly("field_names", [](XCDFFile &self)
-                               {
+            return fields; },
+            "Get the fields contained in the file.")
+        .def_property_readonly(
+            "field_names", [](XCDFFile &self)
+            {
             std::vector<std::string> names;
             names.reserve(self.GetNFields());
             for (auto field = self.FieldDescriptorsBegin(); field != self.FieldDescriptorsEnd(); field++) {
                 names.push_back(field->name_);
             }
-            return names; })
-        .def("__iter__", [](XCDFFile &self)
-             { return &self; })
-        .def("__next__", [](XCDFFile &self)
-             {
+            return names; },
+            "Get the list of field names contained in the file.")
+        .def(
+            "__iter__", [](XCDFFile &self)
+            { return &self; },
+            "Iterate along the file.")
+        .def(
+            "__next__", [](XCDFFile &self)
+            {
             int ret = self.Read();
             if (ret == 0) {
                 throw pybind11::stop_iteration();
             }
             DictBuilder builder;
             self.ApplyFieldVisitor(builder);
-            return builder.data; })
-        .def("__enter__", [](XCDFFile &self)
-             { return &self; })
-        .def("__exit__", [&](XCDFFile &r, void *exc_type, void *exc_value, void *traceback)
-             { r.Close();  });
+            return builder.data; },
+            "Get to the next event.")
+        .def(
+            "__enter__", [](XCDFFile &self)
+            { return &self; },
+            "Enter the runtime context related to the file object")
+        .def(
+            "__exit__", [&](XCDFFile &r, void *exc_type, void *exc_value, void *traceback)
+            { r.Close(); },
+            "Exit the runtime context related to this object.");
 }
