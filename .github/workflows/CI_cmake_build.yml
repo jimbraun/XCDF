@@ -45,3 +45,19 @@ jobs:
           cmake --build build -- -j 2
           echo "Installing..."
           cmake --install build
+      - name: Test suite
+        run: |
+          cd build
+          make test
+      - name: Build documentation
+        run: |
+          sudo apt install doxygen graphviz
+          doxygen docs
+      - name: Deploy documentation to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4.4.1
+        # only run on push to master
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: gh-pages
+          folder: docs/html
