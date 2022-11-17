@@ -1,15 +1,19 @@
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 
-PROJECT (xcdf CXX C)
+CMAKE_POLICY(SET CMP0048 OLD) # Don't tet the project() command manage VERSION variables
 
-CMAKE_MINIMUM_REQUIRED (VERSION 2.8)
+project(xcdf
+  DESCRIPTION "The eXplicitly Compacted Data Format"
+  HOMEPAGE_URL https://github.com/jimbraun/XCDF
+  LANGUAGES CXX C)
 
-ADD_DEFINITIONS ("-Wall -O2")
+ADD_DEFINITIONS("-Wall -O2")
 
 # ------------------------------------------------------------------------------
 # Prevent in-place builds
 # ------------------------------------------------------------------------------
-IF ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
-  MESSAGE (FATAL_ERROR "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+IF("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
+  MESSAGE(FATAL_ERROR "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                                 XCDF Build Warning:
      Please do not try building inside the source tree; it creates a mess!
 
@@ -19,84 +23,96 @@ IF ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
    3) cmake -DCMAKE_INSTALL_PREFIX=/path/to/install ../src
    4) make && make install
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-ENDIF ("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
+ENDIF("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
 
 # -----------------------------------------------------------------------------
 # Set up CMake policies (if any)
 # -----------------------------------------------------------------------------
-IF (COMMAND cmake_policy)
-  CMAKE_POLICY(SET CMP0009 NEW)  # Do not follow symlinks w/ FILE_GLOB_RECURSE
+IF(COMMAND cmake_policy)
+  CMAKE_POLICY(SET CMP0009 NEW) # Do not follow symlinks w/ FILE_GLOB_RECURSE
 
-  IF (("${CMAKE_VERSION}" VERSION_GREATER 3.0) OR ("${CMAKE_VERSION}" VERSION_EQUAL 3.0))
-    CMAKE_POLICY(SET CMP0026 OLD)  # Read LOCATION properties from build targets
-    CMAKE_POLICY(SET CMP0042 OLD)  # Disable @rpath in target install name
+  IF(("${CMAKE_VERSION}" VERSION_GREATER 3.0) OR("${CMAKE_VERSION}" VERSION_EQUAL 3.0))
+    CMAKE_POLICY(SET CMP0026 OLD) # Read LOCATION properties from build targets
+    CMAKE_POLICY(SET CMP0042 OLD) # Disable @rpath in target install name
   ENDIF()
-ENDIF (COMMAND cmake_policy)
+ENDIF(COMMAND cmake_policy)
 
 # ------------------------------------------------------------------------------
 # Release information
 # ------------------------------------------------------------------------------
-SET (XCDF_MAJOR_VERSION  3 CACHE STRING "Major version number")
-SET (XCDF_MINOR_VERSION  0 CACHE STRING "Minor version number")
-SET (XCDF_PATCH_VERSION  1 CACHE STRING "Patch number")
+SET(XCDF_MAJOR_VERSION 4 CACHE STRING "Major version number")
+SET(XCDF_MINOR_VERSION 0 CACHE STRING "Minor version number")
+SET(XCDF_PATCH_VERSION 0 CACHE STRING "Patch number")
 
 # ------------------------------------------------------------------------------
-# Set up build paths 
+# Set up build paths
 # ------------------------------------------------------------------------------
-SET (CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
-INCLUDE (Utility)
-INCLUDE (Python)
+LIST(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+INCLUDE(Utility)
+INCLUDE(RPathHandling)
 
-INCLUDE_DIRECTORIES (${CMAKE_SOURCE_DIR}/include)
-INCLUDE_DIRECTORIES (${CMAKE_SOURCE_DIR}/include/utility)
-INCLUDE_DIRECTORIES (${CMAKE_SOURCE_DIR}/include/alias)
-INCLUDE_DIRECTORIES (${CMAKE_SOURCE_DIR}/src/pybindings)
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/include)
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/include/utility)
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/include/alias)
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/src/pybindings)
 
 # ------------------------------------------------------------------------------
 # Set up core library and utility programs
 # ------------------------------------------------------------------------------
-XCDF_ADD_LIBRARY (TARGET xcdf
+XCDF_ADD_LIBRARY(TARGET xcdf
   HEADERS include/xcdf/*.h
-          include/xcdf/*.h.in
-          include/xcdf/utility/*.h
-          include/xcdf/alias/*.h
+  include/xcdf/*.h.in
+  include/xcdf/utility/*.h
+  include/xcdf/alias/*.h
   SOURCES src/*.cc)
 
-IF (PYTHONLIBS_FOUND)
-  MESSAGE (STATUS "Will build python bindings for XCDF")
+# -------------------------------------
+# Build Python bindings using pybind11
+# -------------------------------------
+OPTION(BUILD_PYTHON "Build python bindings" ON)
 
-  # Build the python bindings
-  # Python breaks strict-aliasing rules, so we must disable this optimization
-  INCLUDE_DIRECTORIES (${PYTHON_INCLUDE_DIR})
-  ADD_LIBRARY (pyxcdf MODULE src/pybindings/PyXCDF.cc)
-  TARGET_LINK_LIBRARIES (pyxcdf xcdf ${PYTHON_LIBRARIES})
-  SET_TARGET_PROPERTIES (pyxcdf PROPERTIES
-    PREFIX ""
-    COMPILE_FLAGS "-fno-strict-aliasing"
-    OUTPUTNAME pyxcdf)
-  INSTALL (TARGETS pyxcdf LIBRARY DESTINATION lib/xcdf)
+if(BUILD_PYTHON)
+  message(STATUS "Will build python bindings for XCDF")
 
-  # Install __init__.py and other scripts into lib/xcdf
-  CONFIGURE_FILE (${CMAKE_CURRENT_SOURCE_DIR}/python/__init__.py.in
-                  ${CMAKE_CURRENT_BINARY_DIR}/__init__.py
-                  @ONLY)
-  INSTALL (FILES ${CMAKE_CURRENT_BINARY_DIR}/__init__.py
-                 ${CMAKE_CURRENT_SOURCE_DIR}/python/Histogram.py
-          DESTINATION lib/xcdf
-          PERMISSIONS OWNER_READ OWNER_WRITE
-                      GROUP_READ GROUP_WRITE
-                      WORLD_READ)
-ENDIF ()
+  if(SKBUILD)
+    message(STATUS "The project is built using scikit-build")
 
-XCDF_ADD_EXECUTABLE (TARGET seek-test SOURCES tests/SeekTest.cc)
-XCDF_ADD_EXECUTABLE (TARGET concat-seek-test SOURCES tests/ConcatSeekTest.cc)
-XCDF_ADD_EXECUTABLE (TARGET random-test SOURCES tests/RandomTest.cc)
-XCDF_ADD_EXECUTABLE (TARGET speed-test SOURCES tests/SpeedTest.cc)
-XCDF_ADD_EXECUTABLE (TARGET simple-test SOURCES tests/SimpleTest.cc)
-XCDF_ADD_EXECUTABLE (TARGET buffer-fill-test SOURCES tests/BufferFillTest.cc)
-XCDF_ADD_EXECUTABLE (TARGET append-test SOURCES tests/AppendTest.cc)
-XCDF_ADD_EXECUTABLE (TARGET utility SOURCES utilities/XCDFUtility.cc EXE_NAME xcdf)
+    # Scikit-Build does not add your site-packages to the search path
+    # automatically, so we need to add it _or_ the pybind11 specific directory
+    # here.
+    execute_process(
+      COMMAND "${PYTHON_EXECUTABLE}" -c
+      "import pybind11; print(pybind11.get_cmake_dir())"
+      OUTPUT_VARIABLE _tmp_dir
+      OUTPUT_STRIP_TRAILING_WHITESPACE COMMAND_ECHO STDOUT)
+    list(APPEND CMAKE_PREFIX_PATH "${_tmp_dir}")
+  endif()
 
+  find_package(pybind11 REQUIRED)
+
+  # to avoid a naming conflict with the cpp library but still
+  # have the python module called "xcdf" we have the cmake target pyxcdf
+  # and set its outputname to xcdf
+  pybind11_add_module(pyxcdf src/pybindings/xcdf/xcdf.cpp)
+
+  set_target_properties(pyxcdf PROPERTIES OUTPUT_NAME xcdf)
+  target_link_libraries(pyxcdf PRIVATE xcdf)
+
+  if(SKBUILD)
+    install(TARGETS pyxcdf xcdf DESTINATION .)
+  else()
+    install(TARGETS pyxcdf DESTINATION lib)
+  endif()
+endif()
+
+XCDF_ADD_EXECUTABLE(TARGET seek-test SOURCES tests/SeekTest.cc)
+XCDF_ADD_EXECUTABLE(TARGET concat-seek-test SOURCES tests/ConcatSeekTest.cc)
+XCDF_ADD_EXECUTABLE(TARGET random-test SOURCES tests/RandomTest.cc)
+XCDF_ADD_EXECUTABLE(TARGET speed-test SOURCES tests/SpeedTest.cc)
+XCDF_ADD_EXECUTABLE(TARGET simple-test SOURCES tests/SimpleTest.cc)
+XCDF_ADD_EXECUTABLE(TARGET buffer-fill-test SOURCES tests/BufferFillTest.cc)
+XCDF_ADD_EXECUTABLE(TARGET append-test SOURCES tests/AppendTest.cc)
+XCDF_ADD_EXECUTABLE(TARGET utility SOURCES utilities/XCDFUtility.cc EXE_NAME xcdf)
 
 # Add an uninstallation script
 CONFIGURE_FILE(
@@ -110,14 +126,26 @@ ADD_CUSTOM_TARGET(uninstall
 # ------------------------------------------------------------------------------
 # Package control
 # ------------------------------------------------------------------------------
-SET (CPACK_PACKAGE_NAME "xcdf")
-SET (CPACK_PACKAGE_VENDOR "J. Braun <jbraun@wipac.wisc.edu>")
-SET (CPACK_PACKAGE_VERSION_MAJOR "${XCDF_MAJOR_VERSION}")
-PAD_STRING (CPACK_PACKAGE_VERSION_MINOR 2 0 "${XCDF_MINOR_VERSION}")
-PAD_STRING (CPACK_PACKAGE_VERSION_PATCH 2 0 "${XCDF_PATCH_VERSION}")
-SET (CPACK_SOURCE_GENERATOR "TBZ2")
-SET (CPACK_SOURCE_IGNORE_FILES "[.]svn;[.]setting;[.].*project;[.]git.*")
+SET(CPACK_PACKAGE_NAME "xcdf")
+SET(CPACK_PACKAGE_VENDOR "J. Braun <jbraun@wipac.wisc.edu>")
+SET(CPACK_PACKAGE_VERSION_MAJOR "${XCDF_MAJOR_VERSION}")
+PAD_STRING(CPACK_PACKAGE_VERSION_MINOR 2 0 "${XCDF_MINOR_VERSION}")
+PAD_STRING(CPACK_PACKAGE_VERSION_PATCH 2 0 "${XCDF_PATCH_VERSION}")
+SET(CPACK_SOURCE_GENERATOR "TBZ2")
+SET(CPACK_SOURCE_IGNORE_FILES "[.]svn;[.]setting;[.].*project;[.]git.*")
 
-SET (CPACK_SOURCE_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}")
-INCLUDE (CPack)
+SET(CPACK_SOURCE_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}")
+INCLUDE(CPack)
 
+# ---------------------
+# Testing suite
+# ---------------------
+include(CTest)
+
+add_test(NAME seek-test COMMAND xcdf-seek-test)
+add_test(NAME concat-seek-test COMMAND xcdf-concat-seek-test)
+add_test(NAME random-test COMMAND xcdf-random-test)
+add_test(NAME speed-test COMMAND xcdf-speed-test)
+add_test(NAME simple-test COMMAND xcdf-simple-test)
+add_test(NAME buffer-fill-test COMMAND xcdf-buffer-fill-test)
+add_test(NAME append-test COMMAND xcdf-append-test)

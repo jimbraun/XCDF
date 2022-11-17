@@ -45,3 +45,7 @@ jobs:
           cmake --build build -- -j 2
           echo "Installing..."
           cmake --install build
+      - name: Test suite
+        run: |
+          cd build
+          make test
