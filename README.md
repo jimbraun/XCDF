@@ -1,5 +1,4 @@
-
-XCDF: The eXplicitly Compacted Data Format
+# XCDF: The eXplicitly Compacted Data Format
 --------------------------------------------------------------------------------
 
 - [Overview](#Overview)
@@ -16,7 +15,7 @@ XCDF: The eXplicitly Compacted Data Format
 
 --------------------------------------------------------------------------------
 
-I. Overview
+## Overview
 
   The eXplicitly Compacted Data Format (XCDF) is written and maintained by Jim
   Braun at the University of Maryland.  XCDF is a binary data format designed
@@ -24,12 +23,12 @@ I. Overview
   bit-packing to store the field at the given accuracy for a given set of
   values and therefore provides substantial compression.
 
-  Python bindings for XCDF are written and maintained by Segev BenZvi at the
+  Python2 bindings for XCDF are written and maintained by Segev BenZvi at the
   University of Wisconsin-Madison.
 
   Python3 bindings have been added using [pybind11](https://pybind11.readthedocs.io/en/stable/) by Maximilian Nöthe from TU Dortmund (Germany) and Michele Peresano from the University of Turin (Italy).
 
-  A. Bit Packing
+### Bit Packing
 
 Bit-packing is the process of compressing data by reducing the number of bits
 needed to represent data values, then packing those bits serially for each
@@ -49,7 +48,7 @@ for each pair. This is nearly a factor of 3 less space than needed by writing
 32-bit floating-point values directly into the file, which would require 64
 bits for each zenith, azimuth pair.
 
-  This scheme has two major drawbacks, however:
+This scheme has two major drawbacks, however:
 
 1. Changes to the data format require significant updates to data readers, as
     well as a data versioning scheme. Examples:
@@ -59,21 +58,21 @@ bits for each zenith, azimuth pair.
   b) Suppose a new field (e.g. energy) is added. Now three fields are written
       sequentially for each event (zenith, azimuth, energy).
 
-  2. The maximum and minimum values of each data field must be specified.
+2. The maximum and minimum values of each data field must be specified.
 
-  XCDF solves these problems by providing a layer of abstraction between the
-  data and data readers, and by dynamically calculating maximum and minimum
-  field values as data are written.
+XCDF solves these problems by providing a layer of abstraction between the
+data and data readers, and by dynamically calculating maximum and minimum
+field values as data are written.
 
-  B. XCDF
+### XCDF
 
-  XCDF stores groups of fields that have a common index (nTuples). Each index
-  is referred to as an event. Data fields are added to the file by specifying a
-  name, resolution, and field type (unsigned/signed integer, or
-  floating-point). Vector fields (fields with multiple entries per event) are
-  also supported, provided that the length of the vector is the value of one of
-  the fields present in the event. The data is written into each field, and
-  then the event is written into the file.
+XCDF stores groups of fields that have a common index (nTuples). Each index
+is referred to as an event. Data fields are added to the file by specifying a
+name, resolution, and field type (unsigned/signed integer, or
+floating-point). Vector fields (fields with multiple entries per event) are
+also supported, provided that the length of the vector is the value of one of
+the fields present in the event. The data is written into each field, and
+then the event is written into the file.
 
 The file is written as blocks of events. The field data is stored in a
 temporary buffer until either the set number of events in the block is
@@ -84,10 +83,10 @@ event, each field is bit-packed using the calculated minimum and maximum
 field values and the specified field resolution and is then written
 sequentially into the file.
 
-  The above procedure is reversed when reading the file back. When a data block
-  is read, the field minimum and maximum are recovered. The data fields are
-  filled each time an event is read, converting the bit-packed datum into the
-  original field value (accurate to the specified field resolution).
+The above procedure is reversed when reading the file back. When a data block
+is read, the field minimum and maximum are recovered. The data fields are
+filled each time an event is read, converting the bit-packed datum into the
+original field value (accurate to the specified field resolution).
 
 ## Installation instructions
 
