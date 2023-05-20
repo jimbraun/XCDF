@@ -1,6 +1,9 @@
 # C extensions
 *.so
 
+# Dynamic libraries
+**/libxcdf.dylib
+
 # Python
 **/*.egg-info
 **/*.pyc
@@ -15,7 +18,10 @@
 **/build
 
 # Documentation
-docs/html
+docs/build/
+docs/source/xml
+docs/source/api/c++
+docs/source/api/xcdf*.rst
 
 # Data files
 **/*.xcd
@@ -25,9 +31,6 @@ docs/html
 __pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
-*.so
 
 # Distribution / packaging
 .Python
