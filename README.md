@@ -1,19 +1,4 @@
 # XCDF: The eXplicitly Compacted Data Format
---------------------------------------------------------------------------------
-
-- [Overview](#Overview)
-- [Description](#Description)
-  - [Bit Packing](#Bit-Packing)
-  - [XCDF](#XCDF)
-- [Installation instructions](#Installation-instructions)
-  - [C/C++ library](#C/C++-library)
-  - [Python3 bindings](#Python3-bindings)
-- [Usage](#Usage)
-  - [C++ interface](#C++-interface)
-  - [Python3 interface](#Python3-interface)
-- [Documentation](#Documentation)
-
---------------------------------------------------------------------------------
 
 ## Overview
 
@@ -141,26 +126,25 @@ Help about the C++ interface and its options can be obtained with the command ``
 ### Python interface
 
 ```python
+import numpy as np
 import xcdf
 
-f = xcdf.File("some_file.xcd", "r") # Open a file
+events = {}
 
-f.field_names # names of the fields
-f.comments    # fields header information of the units
-
-# Cycle over events in the file
-for e in f:
-   print(dict(zip(names, e)))
+with File("some_file.xcd", "r") as input_file:
+    file_header = input_file.comments
+    for event_index, event in enumerate(input_file):
+        events[event_index] = event
 ```
 
 ## Documentation
 
-More detailed documentation is generated automatically and deployed to the GitHub Pages website,
-https:/jimbraun.github.io/XCDF.
-
 To compile the documentation locally,
 
-- install the ``doxygen`` and ``graphviz`` packages in your environment,
-- ``cd docs``,
-- ``doxygen Doxyfile``,
-- open ``docs/html/index.html``with your favorite browser.
+- ``cd docs``
+- ``make html``
+- open ``build/html/index.html`` with your favourite browser
+
+If you see unexpected warnings or errors,
+and especially if you notice unexpected build material laying around,
+issue a ``make clean`` and try again.
