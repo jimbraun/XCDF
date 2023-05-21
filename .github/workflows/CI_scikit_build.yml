@@ -1,0 +1,52 @@
+name: CI based on scikit-build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  scikit_build:
+    name: ${{ matrix.os }} - Python ${{ matrix.python-version }}
+    strategy:
+      matrix:
+        os: ["ubuntu-latest", "macos-latest"]
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3.5.2
+      - name: Setup Python
+        uses: actions/setup-python@v4.6.0
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Build with scikit-build
+        run: |
+          pip install '.[tests]'
+          python -c "from xcdf import __version__; print(f'XCDF python bindings v{__version__}')"
+          pytest
+
+  documentation:
+    strategy:
+      matrix:
+        os: ["ubuntu-latest", "macos-latest"]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        # We need login shells (-l) for micromamba to work.
+        shell: bash -leo pipefail {0}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+  
+      - name: mamba setup
+        uses: mamba-org/provision-with-micromamba@v14
+
+      - name: Install doc dependencies
+        run: |
+          pip install .
+          git describe --tags
+          python -c 'import xcdf; print(xcdf.__version__)'
+
+      - name: Build docs
+        run: make docs-html
