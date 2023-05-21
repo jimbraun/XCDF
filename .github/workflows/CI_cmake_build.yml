@@ -10,35 +10,32 @@ jobs:
     strategy:
       matrix:
         os: ["ubuntu-latest", "macos-latest"]
-        python-version: ["3.8", "3.9","3.10"]
+        python-version: ["3.8", "3.9", "3.10"]
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        # We need login shells (-l) for micromamba to work.
+        shell: bash -leo pipefail {0}
     steps:
       - name: Checkout
         uses: actions/checkout@v3.5.2
-      - name: Setup Python
-        uses: actions/setup-python@v4.6.0
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
+
+      - name: Prepare mamba installation
+        env:
+          PYTHON_VERSION: ${{ matrix.python-version }}
         run: |
-          echo "Installing dependencies..."
-          sudo apt update
-          sudo apt install -y cmake build-essential pybind11-dev
-          cmake --version
-          cc --version
-          c++ --version
-          python --version
+          # setup correct python version
+          sed -i -e "s/- python=.*/- python=$PYTHON_VERSION/g" environment.yml
+
+      - name: Setup micromamba
+        uses: mamba-org/provision-with-micromamba@v15
+        
       - name: Build and install XCDF with Python bindings
         run: |
-          echo "Installing dependencies"
-          sudo apt update
-          sudo apt install -y cmake build-essential pybind11-dev
-          echo "Tools versions"
           cmake --version
           cc --version
           c++ --version
           python --version
-          echo "Configuring...."
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_INSTALL_PREFIX=~/.local/xcdf
