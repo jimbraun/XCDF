@@ -1,0 +1,25 @@
+name: xcdf-dev
+channels:
+  - conda-forge
+dependencies:
+  # Base
+  - python
+  - pip
+  - numpy
+  - setuptools
+  # Build
+  - cmake
+  - pybind11
+  - scikit-build
+  - wheel
+  # Test
+  - pytest
+  # Documentation
+  - sphinx
+  - breathe
+  - doxygen
+  - exhale
+  - furo
+  - graphviz
+  - sphinx-copybutton
+  - sphinx-automodapi

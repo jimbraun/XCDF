@@ -1,29 +1,21 @@
 # XCDF: The eXplicitly Compacted Data Format
---------------------------------------------------------------------------------
 
-- [Overview](#Overview)
-- [Description](#Description)
-  - [Bit Packing](#Bit-Packing)
-  - [XCDF](#XCDF)
-- [Installation instructions](#Installation-instructions)
-- [Python3 support](#Python3-support)
-
---------------------------------------------------------------------------------
+![CMake](https://github.com/jimbraun/XCDF/actions/workflows/CI_cmake_build.yml/badge.svg?branch=feature-1)
+![scikit-build](https://github.com/jimbraun/XCDF/actions/workflows/CI_scikit_build.yml/badge.svg?branch=feature-1)
+[![readthedocs](https://readthedocs.org/projects/xcdf/badge/?version=latest)](https://xcdf.readthedocs.io/en/latest/?badge=latest)
 
 ## Overview
 
   The eXplicitly Compacted Data Format (XCDF) is written and maintained by Jim
   Braun at the University of Maryland.  XCDF is a binary data format designed
-  to store data fields with a user-specified accuracy.  The library uses
+  to store data fields with user-specified accuracy.  The library uses
   bit-packing to store the field at the given accuracy for a given set of
-  values, and therefore provides substantial compression.
+  values and therefore provides substantial compression.
 
   Python2 bindings for XCDF are written and maintained by Segev BenZvi at the
   University of Wisconsin-Madison.
 
-  Python3 bindings have been added using [pybind11](https://pybind11.readthedocs.io/en/stable/) by and Maximilian Nöthe from TU Dortmund (Germany) and Michele Peresano from the University of Turin (Italy).
-
-## Description
+  Python3 bindings have been added using [pybind11](https://pybind11.readthedocs.io/en/stable/) by Maximilian Nöthe from TU Dortmund (Germany) and Michele Peresano from the University of Turin (Italy).
 
 ### Bit Packing
 
@@ -35,25 +27,25 @@ resolution has high entropy and is poorly compressed by generic tools (e.g.
 GZip). As an example, suppose we wish to record zenith and azimuth angles of
 cosmic ray events from an experiment with an angular resolution of one
 degree. Since the resolution is one degree, the data can be stored in bins of
-0.1 degree without significant degradation. Therefore, we create 1800 bins in
+0.1 degrees without significant degradation. Therefore, we create 1800 bins in
 zenith angle, representing 0-180 degrees, and we create 3600 bins in azimuth
 angle, representing 0-360 degrees. We need a minimum of 11 bits to store
-zenith angle (2^11 = 2048) and 12 bits to store azimuth angle (2^12 = 4096).
+the zenith angle (2^11 = 2048) and 12 bits to store the azimuth angle (2^12 = 4096).
 Successive zenith/azimuth angle pairs will be written consecutively in the
 file zenith1,azimuth1,zenith2,azimuth2,zenith3, etc., requiring 23 total bits
 for each pair. This is nearly a factor of 3 less space than needed by writing
 32-bit floating-point values directly into the file, which would require 64
-bits for each zenith,azimuth pair.
+bits for each zenith, azimuth pair.
 
 This scheme has two major drawbacks, however:
 
 1. Changes to the data format require significant updates to data readers, as
     well as a data versioning scheme. Examples:
   a) Suppose one later improves the experiment and needs to write data in
-      0.05 degree bins. This requires adding one bit to both the azimuth and
+      0.05 degrees bins. This requires adding one bit to both the azimuth and
       zenith fields.
   b) Suppose a new field (e.g. energy) is added. Now three fields are written
-      sequentially for each event (zenith,azimuth,energy).
+      sequentially for each event (zenith, azimuth, energy).
 
 2. The maximum and minimum values of each data field must be specified.
 
@@ -77,7 +69,7 @@ reached (default: 1000 events), or the set maximum block size is reached
 (default: 100 MB). Once the block is filled, the minimum and maximum values
 of each field are calculated for the block and written to the file. For each
 event, each field is bit-packed using the calculated minimum and maximum
-field values and the specified field resolution, and is then written
+field values and the specified field resolution and is then written
 sequentially into the file.
 
 The above procedure is reversed when reading the file back. When a data block
@@ -91,7 +83,7 @@ Get the repository by cloning it from GitHub,
 
 ``git clone https://github.com/jimbraun/XCDF``
 
-### C/C++ library
+### C++ library
 
 Configure the project,
 
@@ -105,43 +97,58 @@ Build it,
 
 with ``N`` number of threads to use for compilation.
 
-Finally install it,
+Finally, install it
 
 ``cmake --install .``
 
 For pure ``make`` instructions, please refer to the ``INSTALL`` file.
 
-The installation directory will be filled by the ``bin``, ``include``and ``lib`` subdirectories.
-Remember to export (or check) the appropriate environment variables for your system
-in order for the executables, headers, and libraries to be found.
-
-#### Usage
-
-TBD
+The installation directory will be filled by the ``bin``, ``include`` and ``lib`` subdirectories.
+Remember to export (or check) the appropriate environment variables for your system for the executables, headers, and libraries to be found.
 
 ### Python3 bindings
 
 Bindings for Python3 are created using [pybind11](https://pybind11.readthedocs.io/en/stable/)
 and the Python package is created using [scikit-build](https://scikit-build.readthedocs.io/en/latest/index.html).
 
-*scikit-build* allows to make a package out of the Python bindings,
-so to obtain them you can simply do
+*scikit-build* allows making a package out of the Python bindings,
+so to obtain them you can simply do one of the following,
 
-``pip install .``
+- ``pip install .`` from the root of the repository,
+- ``pip install $PATH_TO_XCDF/XCDF`` from anywhere else.
 
-from the root of the repository.
+Similarly, to also run the tests with `pytest`,
 
-#### Usage
+``pip install ".[tests]"`` or ``pip install "$PATH_TO_XCDF/XCDF[tests]"``
+
+## Usage
+
+### C++ interface
+
+Help about the C++ interface and its options can be obtained with the command ``xcdf -h``.
+
+### Python interface
 
 ```python
+import numpy as np
 import xcdf
 
-f = xcdf.File("some_file.xcd", "r") # Open a file
+events = {}
 
-f.field_names # names of the fields
-f.comments    # fields header information of the units
-
-# Cycle over events in the file
-for e in f:
-   print(dict(zip(names, e)))
+with File("some_file.xcd", "r") as input_file:
+    file_header = input_file.comments
+    for event_index, event in enumerate(input_file):
+        events[event_index] = event
 ```
+
+## Documentation
+
+To compile the documentation locally,
+
+- ``cd docs``
+- ``make html``
+- open ``build/html/index.html`` with your favourite browser
+
+If you see unexpected warnings or errors,
+and especially if you notice unexpected build material laying around,
+issue a ``make clean`` and try again.

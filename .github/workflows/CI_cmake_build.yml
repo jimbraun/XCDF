@@ -1,43 +1,41 @@
-name: C/C++ CI based on CMake
+name: CI based on CMake build
 
 on:
   push:
   pull_request:
 
 jobs:
-  cmake_build:
-    name: CMake + Python ${{ matrix.python-version }}
-    runs-on: ubuntu-latest
+  cmake_build_test:
+    name: ${{ matrix.os }} - Python ${{ matrix.python-version }}
     strategy:
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10"]
+        os: ["ubuntu-latest", "macos-latest"]
+        python-version: ["3.8", "3.9", "3.10"]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        # We need login shells (-l) for micromamba to work.
+        shell: bash -leo pipefail {0}
     steps:
-      - uses: actions/checkout@v2.4.2
-        with:
-          submodules: true
-      - uses: actions/setup-python@v4.0.0
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
+      - name: Checkout
+        uses: actions/checkout@v3.5.2
+
+      - name: Prepare mamba installation
+        env:
+          PYTHON_VERSION: ${{ matrix.python-version }}
         run: |
-          echo "Installing dependencies..."
-          sudo apt update
-          sudo apt install -y cmake build-essential pybind11-dev
-          cmake --version
-          cc --version
-          c++ --version
-          python --version
+          # setup correct python version
+          sed -i -e "s/- python=.*/- python=$PYTHON_VERSION/g" environment.yml
+
+      - name: Setup micromamba
+        uses: mamba-org/provision-with-micromamba@v15
+        
       - name: Build and install XCDF with Python bindings
         run: |
-          echo "Installing dependencies"
-          sudo apt update
-          sudo apt install -y cmake build-essential pybind11-dev
-          echo "Tools versions"
           cmake --version
           cc --version
           c++ --version
           python --version
-          echo "Configuring...."
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_INSTALL_PREFIX=~/.local/xcdf
@@ -45,7 +43,37 @@ jobs:
           cmake --build build -- -j 2
           echo "Installing..."
           cmake --install build
-      - name: Test suite
+      - name: CTest suite
         run: |
           cd build
           make test
+  
+  doxygen-html-docs:
+    strategy:
+      matrix:
+        os: ["ubuntu-latest", "macos-latest"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3.5.2
+
+      - name: HTML Documentation only Doxygen (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          echo "Installing dependencies..."
+          sudo apt update
+          sudo apt install -y doxygen
+          cd docs
+          make doxygen-html
+
+      - name: mamba setup (only for macos)
+        if: matrix.os == 'macos-latest'
+        uses: mamba-org/provision-with-micromamba@v14
+
+      - name: HTML Documentation only Doxygen (macos)
+        if: matrix.os == 'macos-latest'
+        # We need login shells (-l) for micromamba to work.
+        shell: bash -leo pipefail {0}
+        run: |
+          cd docs
+          make doxygen-html

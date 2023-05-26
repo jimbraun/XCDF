@@ -140,12 +140,12 @@ struct DictBuilder
 
 PYBIND11_MODULE(xcdf, m)
 {
-    m.doc() = "Python Bindings for XCDF";
+
     m.attr("__version__") = getVersion();
 
-    m.def("write_test_file", &write_test_file, "Write an XCDF test file in C++");
+    m.def("write_test_file", &write_test_file, "Write an XCDF test file in C++.");
 
-    py::class_<XCDFFieldDescriptor>(m, "FieldDescriptor")
+    py::class_<XCDFFieldDescriptor>(m, "FieldDescriptor", "Class that summarizes the properties of a field.")
         .def("__repr__", [](XCDFFieldDescriptor &self)
              {
             std::stringstream ss;
@@ -165,18 +165,18 @@ PYBIND11_MODULE(xcdf, m)
         .def_property_readonly("raw_resolution", [](XCDFFieldDescriptor &self)
                                { return self.rawResolution_; });
 
-    py::class_<XCDFFile>(m, "File")
+    py::class_<XCDFFile>(m, "File", "XCDF file handle with iterator access to stored records.")
         .def(py::init<const char *, const char *>(),
              py::arg("path"), py::arg("mode") = "r",
              "Open a disk file in the specified mode.")
-        .def("close", &XCDFFile::Close, R"(Close the File instance.
+        .def("close", &XCDFFile::Close, R"pbdoc(Close the File instance.
         
         Underlying file/stream resources will be closed
         and released unless the stream open/close constructors were invoked.
         Fields will be deallocated.
         If writing, do end checks to ensure all data is written out to file.
 
-        )")
+        )pbdoc")
         .def("seek", &XCDFFile::Seek, py::arg("absolute event position"), "Seek to the given event in the file by absolute position.")
         .def("rewind", &XCDFFile::Rewind, "Return the file to a state where calling Read() gives the starting event, if possible.")
         .def("__len__", &XCDFFile::GetEventCount, "Return the total number of events in the file.")
