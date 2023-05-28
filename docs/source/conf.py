@@ -39,9 +39,13 @@ extensions = [
     "sphinx_copybutton",
     "sphinx.ext.viewcode",
     "sphinx_automodapi.automodapi",
+    "sphinx_exec_code",
     "breathe",
     "exhale",
 ]
+
+exec_code_working_dir = "./examples"
+exec_code_example_dir = "./examples"
 
 autosummary_generate = True
 autosummary_ignore_module_all = True
