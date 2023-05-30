@@ -1,7 +1,7 @@
 # XCDF: The eXplicitly Compacted Data Format
 
-![CMake](https://github.com/jimbraun/XCDF/actions/workflows/CI_cmake_build.yml/badge.svg?branch=feature-1)
-![scikit-build](https://github.com/jimbraun/XCDF/actions/workflows/CI_scikit_build.yml/badge.svg?branch=feature-1)
+![CMake](https://github.com/jimbraun/XCDF/actions/workflows/CI_cmake_build.yml/badge.svg?branch=master)
+![scikit-build](https://github.com/jimbraun/XCDF/actions/workflows/CI_scikit_build.yml/badge.svg?branch=master)
 [![readthedocs](https://readthedocs.org/projects/xcdf/badge/?version=latest)](https://xcdf.readthedocs.io/en/latest/?badge=latest)
 
 ## Overview

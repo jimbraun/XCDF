@@ -1,7 +1,0 @@
-breathe
-exhale
-furo
-graphviz
-sphinx
-sphinx-copybutton
-sphinx-automodapi
