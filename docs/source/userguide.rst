@@ -108,17 +108,37 @@ Python interface
 
     After XCDF v3.00.03 support for Python2 has been dropped.
 
-This is a simple example of how to open an XCDF file and
-loads its contents in Python3 and numpy data structures,
+This is a simple tutorial on how to write an XCDF file and
+read its contents in Python3 using numpy data structures.
 
-.. code-block:: python
+Write an XCDF file
+^^^^^^^^^^^^^^^^^^
 
-    import numpy as np
-    import xcdf
+First we will write a file containing two events (rows),
+each defined by two fields, ``A`` and ``B``.
+The latter is a child of the former, which means that
+for each event the value of ``A`` dictates
+how many elements should be contained in ``B``.
 
-    events = {}
+In particular we declare ``A`` as a integer-type field
+and ``B`` a float-type field with a resolution of 0.1.
 
-    with File("some_file.xcd", "r") as input_file:
-        file_header = input_file.comments
-        for event_index, event in enumerate(input_file):
-            events[event_index] = event
+We will also write a small comment to the file header
+at the end.
+
+.. exec_code::
+   :filename: py3_bindings_write.py
+
+Read an XCDF file
+^^^^^^^^^^^^^^^^^
+
+Now let's re-open the same file and read back what we wrote in it.
+
+Notice that, when read back, the data associated to the ``B`` field
+of the first event is the array ``[0. , 0.3, 0.5, 0.8]``
+and not what we injected at writing time, ``[0.  , 0.25, 0.5 , 0.75])``,
+because we declared (i.e. allocated) the ``B`` field with a resolution
+of ``0.1``.
+
+.. exec_code::
+   :filename: py3_bindings_read.py

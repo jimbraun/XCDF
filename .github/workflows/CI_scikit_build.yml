@@ -44,7 +44,7 @@ jobs:
 
       - name: Install doc dependencies
         run: |
-          pip install .
+          pip install '.[docs]'
           git describe --tags
           python -c 'import xcdf; print(xcdf.__version__)'
 

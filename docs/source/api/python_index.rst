@@ -25,5 +25,6 @@ containing
 .. automodapi:: xcdf.xcdf
     :no-heading:
     :include-all-objects:
+    :no-inheritance-diagram:
     
     

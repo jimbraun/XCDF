@@ -5,7 +5,6 @@ from xcdf import File
 
 
 def test_read(tmp_path):
-
     # Create the test file
     path = str(tmp_path / "testfile.xcdf")
     write_test_file(path)
@@ -49,3 +48,51 @@ def test_read(tmp_path):
         "field9": np.array([1.0, 2.0, 3.0]),
     }
     np.testing.assert_equal(actual_first_event, expected_first_event)
+
+
+def test_write(tmp_path):
+    # Create the test file
+    path = str(tmp_path / "test_file_write.xcdf")
+
+    # Write to file
+    with File(path, "w") as f:
+        field_A = f.allocate_uint_field("A", 1, "")
+        field_B = f.allocate_float_field("B", 0.1, "A")
+
+        # event/row 1
+        field_A.add(4)
+        for i in np.arange(0, 1, 0.25):
+            field_B.add(i)
+
+        f.write()
+
+        # event/row 2
+        field_A.add(1)
+        field_B.add(6.0)
+
+        f.write()
+
+        # add a comment
+        f.add_comment("test_comment")
+
+    # Read back
+    events = []
+    with File(path, "r") as f:
+        file_header = f.comments
+        for e in f:
+            events.append(e)
+
+    expected_first_event = {"A": 4, "B": np.array([0.0, 0.3, 0.5, 0.8])}
+    expected_second_event = {"A": 1, "B": np.array([6.0])}
+
+    assert file_header == ["test_comment"]
+    assert len(events) == 2
+
+    for i, field_name in zip(range(2), ["A", "B"]):
+        assert sorted(list(events[i].keys())) == sorted(["A", "B"])
+        np.testing.assert_allclose(
+            events[0][field_name], expected_first_event[field_name]
+        )
+        np.testing.assert_allclose(
+            events[1][field_name], expected_second_event[field_name]
+        )
