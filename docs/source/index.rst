@@ -6,6 +6,14 @@
 XCDF: The eXplicitly Compacted Data Format
 ==========================================
 
+.. |CMake CI| image:: https://github.com/jimbraun/XCDF/actions/workflows/CI_cmake_build.yml/badge.svg?branch=master
+  :target: https://github.com/jimbraun/XCDF/actions/workflows/CI_cmake_build.yml?query=branch%3Amaster
+
+.. |scikit-build CI| image:: https://github.com/jimbraun/XCDF/actions/workflows/CI_scikit_build.yml/badge.svg?branch=master
+  :target: https://github.com/jimbraun/XCDF/actions/workflows/CI_scikit_build.yml?query=branch%3Amaster
+
+|CMake CI| |scikit-build CI|
+
 The *eXplicitly Compacted Data Format* (XCDF) is a binary data format designed
 to store data fields with user-specified accuracy.  The library uses
 bit-packing to store the field at the given accuracy for a given set of
