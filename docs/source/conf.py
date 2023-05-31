@@ -10,10 +10,18 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-import os
-import sys
+# import os
+# import sys
 
-sys.path.insert(0, os.path.abspath("../../"))
+# sys.path.insert(0, os.path.abspath("../../"))
+from pathlib import Path
+
+
+# Remove example files from documentation before compiling again
+examples = Path(__file__).parent / "examples"
+example_file = examples / "example_file_py3bindings.xcd"
+if example_file.exists():
+    example_file.unlink()
 
 
 # -- Project information -----------------------------------------------------
