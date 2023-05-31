@@ -142,3 +142,11 @@ of ``0.1``.
 
 .. exec_code::
    :filename: py3_bindings_read.py
+
+Append to an XCDF file
+^^^^^^^^^^^^^^^^^^^^^^
+
+Now let's add some more data to this existing file.
+
+.. exec_code::
+   :filename: py3_bindings_append.py
