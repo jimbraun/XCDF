@@ -117,8 +117,16 @@ class XCDFField : public ConstXCDFField<T> {
     /// object is not allowed
     XCDFField() : fieldData_(NULL) { }
 
-    /// Add a datum to the field
-    void Add(const T value) {FieldData()->Add(value);}
+    /// @brief Add a datum to the field
+    /// @param value Input value
+    void Add(const T value) { FieldData()->Add(value); }
+
+    /// @brief Add an array of values to the field
+    /// @param value Input array of values
+    void Add(const std::vector<T> value) {
+      for (auto it = value.begin(); it != value.end(); ++it)
+        FieldData()->Add(*it);
+    }
 
     XCDFField<T>& operator<<(const T value) {
       FieldData()->Add(value);

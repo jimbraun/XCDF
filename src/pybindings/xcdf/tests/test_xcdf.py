@@ -128,3 +128,29 @@ def test_append(tmp_path):
     expected_data = np.array([4, 1])
     actual_data = np.array([events[event_index]["A"] for event_index in events])
     np.testing.assert_array_equal(actual_data, expected_data)
+
+
+def test_array_to_field(tmp_path):
+    # Create the test file
+    path = str(tmp_path / "test_array_to_field.xcdf")
+
+    # Write to file
+    with File(path, "w") as f:
+        field_A = f.allocate_uint_field("A", 1, "")
+        field_B = f.allocate_uint_field("B", 1, "A")
+        field_C = f.allocate_int_field("C", 1, "A")
+        field_D = f.allocate_float_field("D", 0.1, "A")
+
+        field_A.add(5)
+        field_B.add(np.arange(5))
+        field_C.add(np.arange(-2, 3))
+        field_D.add(np.linspace(-1, 1, 5))
+
+        f.write()
+
+    # Read back and check contents
+    with File(path, "r") as f:
+        for event in f:
+            np.testing.assert_array_equal(event["B"], np.arange(5))
+            np.testing.assert_array_equal(event["C"], np.arange(-2, 3))
+            np.testing.assert_array_equal(event["D"], np.linspace(-1, 1, 5))
