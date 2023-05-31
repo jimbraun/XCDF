@@ -96,3 +96,35 @@ def test_write(tmp_path):
         np.testing.assert_allclose(
             events[1][field_name], expected_second_event[field_name]
         )
+
+
+def test_append(tmp_path):
+    # Create the test file
+    path = str(tmp_path / "test_file_append.xcdf")
+
+    # Write to file
+    with File(path, "w") as f:
+        field_A = f.allocate_uint_field("A", 1, "")
+
+        # event/row 1
+        field_A.add(4)
+
+        f.write()
+
+    # Write to file
+    with File(path, "a") as same_file:
+        field_A = same_file.allocate_uint_field("A", 1, "")
+
+        # event/row 1
+        field_A.add(1)
+
+        same_file.write()
+
+    events = {}
+    with File(path, "r") as input_file:
+        for event_index, event in enumerate(input_file):
+            events[event_index] = event
+
+    expected_data = np.array([4, 1])
+    actual_data = np.array([events[event_index]["A"] for event_index in events])
+    np.testing.assert_array_equal(actual_data, expected_data)
