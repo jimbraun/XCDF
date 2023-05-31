@@ -129,17 +129,39 @@ PYBIND11_MODULE(xcdf, m) {
   // XCDFUnsignedIntegerField
   py::class_<XCDFField<uint64_t>>(m, "XCDFUnsignedIntegerField",
                                   "Field with unsigned integer data.")
-      .def("add", &XCDFField<uint64_t>::Add);
+      .def("add",
+           static_cast<void (XCDFField<uint64_t>::*)(uint64_t)>(
+               &XCDFField<uint64_t>::Add),
+           "Add a datum to the field.")
+      .def("add",
+           static_cast<void (XCDFField<uint64_t>::*)(
+               const std::vector<uint64_t>)>(&XCDFField<uint64_t>::Add),
+           "Add an array of data to the field.");
 
   // XCDFSignedIntegerField
   py::class_<XCDFField<int64_t>>(m, "XCDFSignedIntegerField",
                                  "Field with signed integer data.")
-      .def("add", &XCDFField<int64_t>::Add);
+      .def("add",
+           static_cast<void (XCDFField<int64_t>::*)(int64_t)>(
+               &XCDFField<int64_t>::Add),
+           "Add a datum to the field.")
+      .def(
+          "add",
+          static_cast<void (XCDFField<int64_t>::*)(const std::vector<int64_t>)>(
+              &XCDFField<int64_t>::Add),
+          "Add an array of data to the field.");
 
   // XCDFFloatingPointField
   py::class_<XCDFField<double>>(m, "XCDFFloatingPointField",
                                 "Field with floating point data.")
-      .def("add", &XCDFField<double>::Add);
+      .def("add",
+           static_cast<void (XCDFField<double>::*)(double)>(
+               &XCDFField<double>::Add),
+           "Add a datum to the field.")
+      .def("add",
+           static_cast<void (XCDFField<double>::*)(const std::vector<double>)>(
+               &XCDFField<double>::Add),
+           "Add an array of data to the field.");
 
   py::class_<XCDFFieldDescriptor>(
       m, "FieldDescriptor", "Class that summarizes the properties of a field.")
