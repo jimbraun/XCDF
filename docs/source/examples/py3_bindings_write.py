@@ -16,8 +16,8 @@ with File(str(test_file), "w") as f:
 
     # Field "B" is a child of "A", so it needs to contain
     # as many values as the entry in "A" says for this event
-    for i in np.arange(0, 1, 0.25):
-        field_B.add(i)
+    # Let's add the numpy equivalent of [0.  , 0.25, 0.5 , 0.75]
+    field_B.add(np.arange(0, 1, 0.25))
 
     f.write()
 

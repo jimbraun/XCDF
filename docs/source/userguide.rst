@@ -136,7 +136,7 @@ Now let's re-open the same file and read back what we wrote in it.
 
 Notice that, when read back, the data associated to the ``B`` field
 of the first event is the array ``[0. , 0.3, 0.5, 0.8]``
-and not what we injected at writing time, ``[0.  , 0.25, 0.5 , 0.75])``,
+and not what we injected at writing time, ``[0.  , 0.25, 0.5 , 0.75]``,
 because we declared (i.e. allocated) the ``B`` field with a resolution
 of ``0.1``.
 

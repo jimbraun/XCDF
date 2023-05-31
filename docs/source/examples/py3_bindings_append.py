@@ -1,5 +1,6 @@
 from pathlib import Path
 from pprint import pprint
+import numpy as np
 from xcdf import File
 
 test_file = Path.cwd() / Path("example_file_py3bindings.xcd")
@@ -34,10 +35,8 @@ with File(str(test_file), "a") as again_same_file:
 
     # Add data for the second event/row
 
-    field_A.add(2)
-
-    field_B.add(23)
-    field_B.add(34)
+    field_A.add(10)
+    field_B.add(np.linspace(-5.0, 5.0, 10))
 
     again_same_file.write()
 
