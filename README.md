@@ -4,6 +4,11 @@
 ![scikit-build](https://github.com/jimbraun/XCDF/actions/workflows/CI_scikit_build.yml/badge.svg?branch=master)
 [![readthedocs](https://readthedocs.org/projects/xcdf/badge/?version=latest)](https://xcdf.readthedocs.io/en/latest/?badge=latest)
 
+## Official documentation
+
+Starting from XCDF > v3.00.03 the documentation is built automatically on ReadTheDocs
+and can be found at https://readthedocs.org/projects/xcdf/.
+
 ## Overview
 
   The eXplicitly Compacted Data Format (XCDF) is written and maintained by Jim
