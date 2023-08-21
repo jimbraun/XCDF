@@ -7,6 +7,9 @@ project(xcdf
   HOMEPAGE_URL https://github.com/jimbraun/XCDF
   LANGUAGES CXX C)
 
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+
 ADD_DEFINITIONS("-Wall -O2")
 
 # ------------------------------------------------------------------------------
