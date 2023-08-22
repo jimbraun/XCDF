@@ -12,13 +12,13 @@
 #include "xcdf/XCDFFieldDescriptor.h"
 #include "xcdf/XCDFFile.h"
 #include <xcdf/XCDFField.h>
+#include <xcdf/version.h>
 
 namespace py = pybind11;
 
 std::string getVersion() {
   std::stringstream ss;
-  ss << XCDF_MAJOR_VERSION << "." << XCDF_MINOR_VERSION << "."
-     << XCDF_PATCH_VERSION;
+  ss << xcdf::get_version();
   return ss.str();
 }
 
