@@ -1,0 +1,25 @@
+#include "xcdf/version.h"
+
+namespace xcdf {
+
+std::string get_version() {
+    return "@GIT_DESCRIBE@";
+}
+
+std::string get_git_hash() {
+    return "@GIT_HASH@";
+}
+
+int get_major_version() {
+    return @PROJECT_VERSION_MAJOR@;
+}
+
+int get_minor_version() {
+    return @PROJECT_VERSION_MINOR@ +0;
+}
+
+int get_patch_version() {
+    return @PROJECT_VERSION_PATCH@ +0;
+}
+
+} // namespace xcdf
