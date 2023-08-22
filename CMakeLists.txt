@@ -1,11 +1,21 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
+cmake_minimum_required(VERSION 3.15...3.27 FATAL_ERROR)
 
-CMAKE_POLICY(SET CMP0048 OLD) # Don't tet the project() command manage VERSION variables
+include(cmake/GitVersion.cmake)
+version_from_git(xcdf LOG)
 
 project(xcdf
   DESCRIPTION "The eXplicitly Compacted Data Format"
+  VERSION ${GIT_VERSION}
   HOMEPAGE_URL https://github.com/jimbraun/XCDF
   LANGUAGES CXX C)
+
+# provide version information
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+  ${PROJECT_NAME}ConfigVersion.cmake
+  VERSION ${PACKAGE_VERSION}
+  COMPATIBILITY SameMajorVersion
+)
 
 ADD_DEFINITIONS("-Wall -O2")
 
@@ -38,13 +48,6 @@ IF(COMMAND cmake_policy)
 ENDIF(COMMAND cmake_policy)
 
 # ------------------------------------------------------------------------------
-# Release information
-# ------------------------------------------------------------------------------
-SET(XCDF_MAJOR_VERSION 4 CACHE STRING "Major version number")
-SET(XCDF_MINOR_VERSION 0 CACHE STRING "Minor version number")
-SET(XCDF_PATCH_VERSION 0 CACHE STRING "Patch number")
-
-# ------------------------------------------------------------------------------
 # Set up build paths
 # ------------------------------------------------------------------------------
 LIST(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
@@ -59,12 +62,17 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/src/pybindings)
 # ------------------------------------------------------------------------------
 # Set up core library and utility programs
 # ------------------------------------------------------------------------------
+
+# add version info file
+set(version_file "${CMAKE_CURRENT_BINARY_DIR}/version.cpp")
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/version.cpp.in ${version_file})
+
 XCDF_ADD_LIBRARY(TARGET xcdf
   HEADERS include/xcdf/*.h
   include/xcdf/*.h.in
   include/xcdf/utility/*.h
   include/xcdf/alias/*.h
-  SOURCES src/*.cc)
+  SOURCES src/*.cc ${version_file})
 
 # -------------------------------------
 # Build Python bindings using pybind11
@@ -128,9 +136,9 @@ ADD_CUSTOM_TARGET(uninstall
 # ------------------------------------------------------------------------------
 SET(CPACK_PACKAGE_NAME "xcdf")
 SET(CPACK_PACKAGE_VENDOR "J. Braun <jbraun@wipac.wisc.edu>")
-SET(CPACK_PACKAGE_VERSION_MAJOR "${XCDF_MAJOR_VERSION}")
-PAD_STRING(CPACK_PACKAGE_VERSION_MINOR 2 0 "${XCDF_MINOR_VERSION}")
-PAD_STRING(CPACK_PACKAGE_VERSION_PATCH 2 0 "${XCDF_PATCH_VERSION}")
+SET(CPACK_PACKAGE_VERSION_MAJOR "${PROJECT_MAJOR_VERSION}")
+PAD_STRING(CPACK_PACKAGE_VERSION_MINOR 2 0 "${PROJECT_MINOR_VERSION}")
+PAD_STRING(CPACK_PACKAGE_VERSION_PATCH 2 0 "${PROJECT_PATCH_VERSION}")
 SET(CPACK_SOURCE_GENERATOR "TBZ2")
 SET(CPACK_SOURCE_IGNORE_FILES "[.]svn;[.]setting;[.].*project;[.]git.*")
 
