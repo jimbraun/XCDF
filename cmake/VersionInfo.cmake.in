@@ -1,0 +1,8 @@
+set(GIT_HASH              "@git_hash@" PARENT_SCOPE)
+set(GIT_VERSION           "@version@" PARENT_SCOPE)
+set(GIT_DESCRIBE          "@git_describe@" PARENT_SCOPE)
+set(GIT_VERSION_MAJOR     @version_major@ PARENT_SCOPE)
+set(GIT_VERSION_MINOR     @version_minor@ PARENT_SCOPE)
+set(GIT_VERSION_PATCH     @version_patch@ PARENT_SCOPE)
+set(GIT_COMMITS_SINCE_TAG @commits_since_tag@ PARENT_SCOPE)
+set(GIT_DIRTY             @is_dirty@ PARENT_SCOPE)

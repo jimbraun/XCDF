@@ -9,6 +9,12 @@
 Starting from XCDF > v3.00.03 the documentation is built automatically on ReadTheDocs
 and can be found at https://readthedocs.org/projects/xcdf/.
 
+## Installation requirements
+
+- CMake > 3.15
+- a C++ compiler with full support for the C++11 standard
+- Python >= 3.7
+
 ## Overview
 
   The eXplicitly Compacted Data Format (XCDF) is written and maintained by Jim

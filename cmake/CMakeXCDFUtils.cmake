@@ -2,8 +2,8 @@
 # Macro XCDF_ADD_LIBRARY
 # ------------------------------------------------------------------------------
 FUNCTION (XCDF_ADD_LIBRARY)
-  SET (oneValueArgs TARGET SOURCES)
-  SET (multiValueArgs HEADERS)
+  SET(oneValueArgs TARGET)
+  SET(multiValueArgs HEADERS SOURCES)
   CMAKE_PARSE_ARGUMENTS(XCDF_ADD_LIBRARY "${options}" "${oneValueArgs}" "${multiValueArgs}" "${ARGN}")
 
   SET (_lib "${XCDF_ADD_LIBRARY_TARGET}")
@@ -69,5 +69,5 @@ FUNCTION (XCDF_ADD_EXECUTABLE)
   ENDIF (XCDF_ADD_EXECUTABLE_EXE_NAME)
   IF(NOT SKBUILD)
     INSTALL (TARGETS ${_exename} DESTINATION bin)
-  ENDIF(SKBUILD)
+  ENDIF(NOT SKBUILD)
 ENDFUNCTION( )

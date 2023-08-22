@@ -16,6 +16,7 @@
 **/_skbuild
 # CMake
 **/build
+**/generated
 
 # Documentation
 docs/build/

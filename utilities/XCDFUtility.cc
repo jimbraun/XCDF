@@ -4,7 +4,7 @@
 #include <xcdf/utility/HistogramFiller.h>
 #include <xcdf/utility/Histogram.h>
 #include <xcdf/XCDFDefs.h>
-#include <xcdf/config.h>
+#include <xcdf/version.h>
 
 #include <set>
 #include <sstream>
@@ -1112,9 +1112,7 @@ void Paste(std::vector<std::string>& infiles,
 void PrintVersion() {
 
   std::cout << "\n XCDF version "
-            << XCDF_MAJOR_VERSION << "."
-            << XCDF_MINOR_VERSION << "."
-            << XCDF_PATCH_VERSION << "\n"
+            << xcdf::get_version()
             << std::endl;
 
 }

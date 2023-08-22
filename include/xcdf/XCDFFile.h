@@ -44,7 +44,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <xcdf/XCDFFieldDescriptor.h>
 #include <xcdf/XCDFStreamHandler.h>
 #include <xcdf/XCDFDefs.h>
-#include <xcdf/config.h>
+#include <xcdf/version.h>
 
 #include <string>
 #include <vector>
@@ -376,9 +376,7 @@ class XCDFFile {
     void AddVersionComment() {
       std::stringstream str;
       str << "XCDF version "
-            << XCDF_MAJOR_VERSION << "."
-            << XCDF_MINOR_VERSION << "."
-            << XCDF_PATCH_VERSION;
+            << xcdf::get_version();
       AddComment(str.str());
     }
 

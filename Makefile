@@ -38,7 +38,7 @@ docs-html:
 	cd $(DOCS)
 	$(MAKE) -C $(DOCS) html
 	@echo "------------------------------------------------"
-	@echo "Documentation is in: $(DOCS)/_build/html/index.html"
+	@echo "Documentation is in: $(DOCS)/build/html/index.html"
 
 conda-env:
 	conda env create -f environment.yaml

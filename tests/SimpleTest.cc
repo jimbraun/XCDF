@@ -100,6 +100,7 @@ int main(int argc, char** argv) {
   }
 
   f.AddComment("test file");
+  f.AddVersionComment();
 
   // Trailer alias
   f.CreateAlias("testTrailerAlias", "double(testAlias + 2)");
