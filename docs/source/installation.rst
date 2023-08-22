@@ -5,17 +5,18 @@ Installation
 
 .. note::
 
-    For now only source-code installations are available.
+    For now only source-code installations are available
+    for XCDF ``> v3.00.03``.
 
 Requirements
 ------------
 
-For the C++ library.
+For the C++ library,
 
-- a C/C++ compiler compatible with at least C++11
-- cmake >= v2.8
+- a C++ compiler fully compatible with at least the C++11 standard
+- ``cmake >= v3.15``
 
-For the Python bindings a Python virtual environment.
+For the Python bindings a Python virtual environment with ``python >= 3.7``.
 
 .. tip::
 
@@ -35,33 +36,58 @@ get the repository by cloning it from GitHub,
 
 ``git clone https://github.com/jimbraun/XCDF``
 
+Versioning
+^^^^^^^^^^
+
+The versioning system is based on
+`Semantic Versioning <https://semver.org/>`_
+using the metadata stored in the git
+repository (see `git describe <https://git-scm.com/docs/git-describe>`_).
+
+Each version will look be composed by the following fields,
+
+- *major version* for incompatible API changes,
+- *minor version* for the addition of backward-compatible new functionalities,
+- *patch version* for backward-compatible bug fixes
+- *number of commits* from last release
+- *last commit hash* prepended by the letter "g"
+- "*dirty*" if the working directory tree has local modifications
+
+The last three fields will appear only for a developer installation.
+
 C++ library
 -----------
 
 Configure the project,
 
-``cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR -S XCDF -B build``
+``cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR -S $SOURCE_DIR -B build``
 
-where ``$INSTALL_DIR`` is the final installation directory you want to use.
+where ``$INSTALL_DIR`` is the final installation directory you want to use
+and ``$SOURCE_DIR`` the directory with the source code (either from a
+decompressed released archive or the cloned git repository).
 
-Build it,
+Build the project,
 
 ``cmake --build build -- -jN``
 
 with ``N`` number of threads to use for compilation.
 
-Finally, install it
+Finally install the software,
 
-``cmake --install .``
+``cmake --install build``
 
-For pure ``make`` instructions, please refer to the ``INSTALL`` file.
+.. note::
+
+    Using CMake is the recommended approach.
+    For pure ``make`` instructions, please refer to the ``INSTALL`` file.
 
 The installation directory will be filled by the ``bin``, ``include`` and ``lib`` subdirectories.
-Remember to export (or check) the appropriate environment variables for your system for the executables, headers, and libraries to be found.
+Remember to export (or check) the appropriate environment variables for your system
+for the executables, headers, and libraries to be found.
 
 .. important::
 
-    The current minum required version of CMake is quite old (``v2.8``)
+    Up to XCDF ``v3.00.03`` the minum required version of CMake was quite old (``v2.8``)
     and some commands might be probably different.
     Please, refer to
     `CMake's documentation <https://cmake.org/documentation/>`_.
@@ -87,7 +113,7 @@ Similarly, to also run the tests with `pytest <https://docs.pytest.org/en/latest
 
 .. important::
 
-    Python2 bindings are discontinued since ``XCDF>=v3.00.03``.
+    Python2 bindings are discontinued since ``XCDF > v3.00.03``.
     We strongly encourage to upgrade to more recent versions
     (see also `Python Release Cycle <https://devguide.python.org/versions/>`_).
 
