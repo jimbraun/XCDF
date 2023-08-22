@@ -9,6 +9,9 @@ project(xcdf
   HOMEPAGE_URL https://github.com/jimbraun/XCDF
   LANGUAGES CXX C)
 
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+
 # provide version information
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file(
